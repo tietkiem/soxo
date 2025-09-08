@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Công cụ Thống kê Xổ số</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            background-color: #1d4ed8;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .stat-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.2s ease-in-out;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .number-ball {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            font-weight: 600;
+            margin: 0.25rem;
+            color: white;
+        }
+        .xsmb-ball { background-color: #dc2626; }
+        .mega645-ball { background-color: #16a34a; }
+        .power655-ball { background-color: #f97316; }
+        .special-ball { background-color: #ca8a04; }
+        
+        #loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Công cụ Thống kê & Phân tích Xổ số</h1>
+            <p class="text-gray-600 mt-2">Phân tích tần suất, các chu kỳ và các cặp số hay về.</p>
+        </header>
+
+        <div class="bg-white p-4 rounded-xl shadow-lg mb-8">
+            <div class="p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-md">
+                <p class="font-bold">Lưu ý quan trọng:</p>
+                <p>Công cụ này sử dụng <strong class="text-red-600">dữ liệu mô phỏng ngẫu nhiên</strong> để minh họa các tính năng thống kê. Kết quả phân tích không phản ánh kết quả xổ số thực tế và chỉ nên được dùng cho mục đích tham khảo, giải trí.</p>
+            </div>
+
+            <!-- Controls -->
+            <div class="mt-6">
+                <div class="flex flex-wrap items-center justify-center gap-4">
+                    <!-- Tabs -->
+                    <div id="tabs" class="flex flex-wrap justify-center space-x-2 bg-gray-200 p-2 rounded-lg">
+                        <button id="tab-xsmb" class="tab-button px-4 py-2 font-semibold rounded-md active">XS Miền Bắc</button>
+                        <button id="tab-mega645" class="tab-button px-4 py-2 font-semibold rounded-md">Mega 6/45</button>
+                        <button id="tab-power655" class="tab-button px-4 py-2 font-semibold rounded-md">Power 6/55</button>
+                    </div>
+
+                    <!-- Input and Buttons -->
+                    <div class="flex items-center space-x-2">
+                        <label for="draw-count" class="font-medium text-gray-700">Số kỳ phân tích:</label>
+                        <input type="number" id="draw-count" value="200" class="w-24 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex space-x-2">
+                         <button id="analyze-btn" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md">Phân Tích</button>
+                         <button id="clear-data-btn" class="bg-red-500 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-red-600 transition-colors shadow-md">Xóa Dữ Liệu Cũ</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Loading Spinner -->
+        <div id="loader-container" class="text-center my-10 hidden">
+            <div id="loader" class="mx-auto"></div>
+            <p class="mt-4 text-gray-600 font-semibold">Đang tính toán và phân tích dữ liệu...</p>
+        </div>
+        
+        <!-- Results -->
+        <div id="results-container" class="space-y-8">
+            <!-- This will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DOM Elements ---
+        const tabs = {
+            xsmb: document.getElementById('tab-xsmb'),
+            mega645: document.getElementById('tab-mega645'),
+            power655: document.getElementById('tab-power655')
+        };
+        const drawCountInput = document.getElementById('draw-count');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const clearDataBtn = document.getElementById('clear-data-btn');
+        const loader = document.getElementById('loader-container');
+        const resultsContainer = document.getElementById('results-container');
+        
+        // --- App State ---
+        let currentLottery = 'xsmb';
+        const DB_KEY = 'lotteryAnalysisData';
+
+        // --- Utility Functions ---
+        const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+        // Generate a set of unique random numbers
+        const getUniqueRandomSet = (count, min, max) => {
+            const set = new Set();
+            while(set.size < count) {
+                set.add(getRandomInt(min, max));
+            }
+            return Array.from(set);
+        };
+
+        // --- Data Generation ---
+        const generateMockData = (lotteryType, numDraws) => {
+            const data = [];
+            const today = new Date();
+            for (let i = 0; i < numDraws; i++) {
+                const drawDate = new Date(today);
+                drawDate.setDate(today.getDate() - i);
+                
+                let numbers = [];
+                switch (lotteryType) {
+                    case 'xsmb':
+                        // Generate 27 prizes for Northern Lottery (2-digit numbers)
+                        for (let j = 0; j < 27; j++) {
+                           numbers.push(getRandomInt(0, 99));
+                        }
+                        break;
+                    case 'mega645':
+                        numbers = getUniqueRandomSet(6, 1, 45);
+                        break;
+                    case 'power655':
+                        const mainNumbers = getUniqueRandomSet(6, 1, 55);
+                        const remaining = Array.from({length: 55}, (_, k) => k + 1).filter(n => !mainNumbers.includes(n));
+                        const specialNumber = remaining[getRandomInt(0, remaining.length - 1)];
+                        numbers = { main: mainNumbers, special: specialNumber };
+                        break;
+                }
+                data.push({
+                    id: `KY${numDraws - i}`,
+                    date: drawDate.toISOString().split('T')[0],
+                    numbers: numbers
+                });
+            }
+            return data.reverse(); // Oldest first
+        };
+        
+        // --- Data Persistence ---
+        const saveData = (data) => {
+            try {
+                localStorage.setItem(DB_KEY, JSON.stringify(data));
+            } catch (e) {
+                console.error("Lỗi khi lưu dữ liệu:", e);
+                alert("Không thể lưu dữ liệu. Có thể bộ nhớ trình duyệt đã đầy.");
+            }
+        };
+
+        const loadData = () => {
+            const data = localStorage.getItem(DB_KEY);
+            return data ? JSON.parse(data) : {};
+        };
+        
+        const clearData = () => {
+            localStorage.removeItem(DB_KEY);
+            resultsContainer.innerHTML = '<div class="text-center p-4 bg-green-100 text-green-700 rounded-lg">Đã xóa dữ liệu cũ. Nhấn "Phân Tích" để tạo dữ liệu mới.</div>';
+        };
+
+        // --- Analysis Functions ---
+        const analyzeData = () => {
+            loader.classList.remove('hidden');
+            resultsContainer.innerHTML = '';
+            
+            // Simulate processing time
+            setTimeout(() => {
+                const numDraws = parseInt(drawCountInput.value) || 200;
+                let db = loadData();
+
+                // Generate data if it doesn't exist or is insufficient
+                if (!db[currentLottery] || db[currentLottery].length < numDraws) {
+                    console.log(`Tạo dữ liệu mô phỏng cho ${currentLottery}...`);
+                    db[currentLottery] = generateMockData(currentLottery, Math.max(numDraws, 200)); // Generate at least 200
+                    saveData(db);
+                }
+                
+                const dataToAnalyze = db[currentLottery].slice(-numDraws);
+
+                // Perform all analyses
+                const allNumbers = dataToAnalyze.flatMap(d => {
+                    if (currentLottery === 'power655') return [...d.numbers.main, d.numbers.special];
+                    return d.numbers;
+                });
+                
+                const numberRange = currentLottery === 'xsmb' ? {min: 0, max: 99} : 
+                                    currentLottery === 'mega645' ? {min: 1, max: 45} : 
+                                    {min: 1, max: 55};
+
+                const frequency = calculateFrequency(allNumbers, numberRange);
+                const { mostFrequent, leastFrequent } = getTopBottom(frequency, 5);
+                const { longestNotSeen, recentHistory } = findLongestNotSeen(dataToAnalyze, numberRange);
+                const prediction = generatePrediction(mostFrequent, leastFrequent, longestNotSeen);
+                
+                // Render results
+                displayPrediction(prediction);
+                displayFrequency(frequency);
+                displayTopLists(mostFrequent, leastFrequent);
+                displayNotSeen(longestNotSeen, recentHistory);
+
+                if (currentLottery === 'xsmb') {
+                    const headTailStats = calculateHeadTailStats(allNumbers);
+                    displayHeadTailStats(headTailStats);
+                }
+                
+                loader.classList.add('hidden');
+
+            }, 500); // 0.5s delay for UX
+        };
+
+        const calculateFrequency = (numbers, range) => {
+            const freq = {};
+            for (let i = range.min; i <= range.max; i++) {
+                freq[i] = 0;
+            }
+            numbers.forEach(num => {
+                freq[num] = (freq[num] || 0) + 1;
+            });
+            return freq;
+        };
+
+        const getTopBottom = (frequencyData, count) => {
+            const sorted = Object.entries(frequencyData).sort(([,a], [,b]) => b - a);
+            return {
+                mostFrequent: sorted.slice(0, count),
+                leastFrequent: sorted.slice(-count).reverse()
+            };
+        };
+        
+        const findLongestNotSeen = (draws, range) => {
+            const lastSeen = {};
+            for (let i = range.min; i <= range.max; i++) {
+                lastSeen[i] = -1; // Not seen yet
+            }
+
+            draws.forEach((draw, index) => {
+                const numbersInDraw = new Set(
+                    currentLottery === 'power655' ? [...draw.numbers.main, draw.numbers.special] : draw.numbers
+                );
+                numbersInDraw.forEach(num => {
+                    lastSeen[num] = index;
+                });
+            });
+
+            const notSeen = [];
+            const totalDraws = draws.length;
+            for (let i = range.min; i <= range.max; i++) {
+                const daysAgo = totalDraws - 1 - lastSeen[i];
+                if (lastSeen[i] !== -1) {
+                   notSeen.push({ number: i, days: daysAgo });
+                }
+            }
+            
+            const longestNotSeen = notSeen.sort((a, b) => b.days - a.days).slice(0, 10);
+            
+            // For context, show the last 5 draws
+            const recentHistory = draws.slice(-5).reverse();
+
+            return { longestNotSeen, recentHistory };
+        };
+        
+        const calculateHeadTailStats = (numbers) => {
+             const stats = { head: {}, tail: {} };
+             for(let i=0; i<10; i++) {
+                 stats.head[i] = 0;
+                 stats.tail[i] = 0;
+             }
+             numbers.forEach(num => {
+                 const n = parseInt(num);
+                 const head = Math.floor(n/10);
+                 const tail = n % 10;
+                 stats.head[head]++;
+                 stats.tail[tail]++;
+             });
+             return stats;
+        };
+        
+        const generatePrediction = (mostFrequent, leastFrequent, longestNotSeen) => {
+            let predictedNumbers = new Set();
+            const mostFreqNums = mostFrequent.map(item => parseInt(item[0]));
+            const longestNotSeenNums = longestNotSeen.map(item => item.number);
+
+            let prediction = { title: '', numbers: [], note: '' };
+
+            if (currentLottery === 'xsmb') {
+                prediction.title = 'Gợi ý Cặp số Bạch thủ & Song thủ Lô';
+                // Pick one from most frequent, one from longest not seen
+                if (mostFreqNums.length > 0) predictedNumbers.add(mostFreqNums[0]);
+                if (longestNotSeenNums.length > 0) predictedNumbers.add(longestNotSeenNums[0]);
+                
+                // Ensure we have two distinct numbers
+                if (predictedNumbers.size < 2 && mostFreqNums.length > 1) {
+                    predictedNumbers.add(mostFreqNums[1]);
+                }
+                 while (predictedNumbers.size < 2 && longestNotSeenNums.length > predictedNumbers.size) {
+                    predictedNumbers.add(longestNotSeenNums[predictedNumbers.size-1]);
+                }
+
+                prediction.numbers = Array.from(predictedNumbers).slice(0, 2);
+                prediction.note = `Gợi ý dựa trên số có tần suất về cao nhất và số gan lâu nhất.`;
+                return prediction;
+            }
+
+            // For Mega and Power
+            const needed = 6;
+            prediction.title = `Dàn số Gợi ý cho ${currentLottery === 'mega645' ? 'Mega 6/45' : 'Power 6/55'}`;
+
+            // Logic: 2 from most frequent, 2 from longest not seen, 2 random
+            mostFreqNums.slice(0, 2).forEach(n => predictedNumbers.add(n));
+    
+            let ganAdded = 0;
+            for (const n of longestNotSeenNums) {
+                if (ganAdded >= 2) break;
+                if (!predictedNumbers.has(n)) {
+                    predictedNumbers.add(n);
+                    ganAdded++;
+                }
+            }
+            
+            const numberRange = currentLottery === 'mega645' ? {min: 1, max: 45} : {min: 1, max: 55};
+            while (predictedNumbers.size < needed) {
+                let randomNum = getRandomInt(numberRange.min, numberRange.max);
+                predictedNumbers.add(randomNum);
+            }
+
+            prediction.numbers = Array.from(predictedNumbers).sort((a,b) => a - b);
+            prediction.note = 'Dàn số được tạo ra bằng cách kết hợp các số có tần suất cao, các số gan và các số ngẫu nhiên.';
+            return prediction;
+        };
+        
+        // --- Rendering Functions ---
+        const getBallClass = () => {
+            switch(currentLottery) {
+                case 'xsmb': return 'xsmb-ball';
+                case 'mega645': return 'mega645-ball';
+                case 'power655': return 'power655-ball';
+                default: return 'bg-gray-500';
+            }
+        };
+        
+        const renderCard = (title, content) => {
+            return `
+                <div class="stat-card p-4 md:p-6">
+                    <h2 class="text-xl font-bold text-gray-800 border-b-2 border-gray-200 pb-2 mb-4">${title}</h2>
+                    <div>${content}</div>
+                </div>
+            `;
+        };
+        
+        const displayPrediction = (prediction) => {
+            if (!prediction || !prediction.numbers || prediction.numbers.length === 0) return;
+
+            const ballClass = getBallClass();
+            let numbersHtml = prediction.numbers.map(n => 
+                `<div class="number-ball !w-12 !h-12 text-xl mx-auto ${ballClass}">${n.toString().padStart(2, '0')}</div>`
+            ).join('');
+
+            let content = `
+                <div class="text-center">
+                    <div class="flex flex-wrap justify-center gap-4 mb-4">${numbersHtml}</div>
+                    <p class="text-sm text-gray-600 italic mt-4">${prediction.note}</p>
+                    <div class="mt-4 p-2 bg-red-100 border border-red-300 text-red-700 text-xs rounded-md">
+                        <strong>Lưu ý:</strong> Dự đoán này hoàn toàn dựa trên phân tích dữ liệu mô phỏng, chỉ mang tính chất tham khảo và giải trí. Không có gì đảm bảo chắc chắn.
+                    </div>
+                </div>
+            `;
+            resultsContainer.innerHTML += renderCard(`Dự đoán cho kỳ quay tiếp theo`, content);
+        };
+        
+        const displayFrequency = (frequency) => {
+            const maxCount = Math.max(...Object.values(frequency));
+            let content = '<div class="grid grid-cols-5 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 gap-4">';
+            const ballClass = getBallClass();
+
+            for (const [number, count] of Object.entries(frequency)) {
+                const opacity = count > 0 ? 0.5 + (count / maxCount) * 0.5 : 0.2;
+                const formattedNumber = number.toString().padStart(2, '0');
+                content += `
+                    <div class="text-center">
+                        <div class="number-ball mx-auto ${ballClass}" style="opacity: ${opacity};">
+                            ${formattedNumber}
+                        </div>
+                        <p class="text-xs font-semibold mt-1">${count} lần</p>
+                    </div>
+                `;
+            }
+            content += '</div>';
+            resultsContainer.innerHTML += renderCard('Bảng Tần Suất Các Con Số', content);
+        };
+        
+        const displayTopLists = (most, least) => {
+            const ballClass = getBallClass();
+            let mostContent = '<div class="space-y-3">';
+            most.forEach(([number, count]) => {
+                mostContent += `
+                    <div class="flex items-center">
+                        <div class="number-ball text-sm !w-8 !h-8 ${ballClass}">${number.toString().padStart(2, '0')}</div>
+                        <div class="flex-grow ml-3">
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${count/most[0][1]*100}%"></div>
+                            </div>
+                        </div>
+                        <span class="ml-3 font-semibold text-gray-700">${count} lần</span>
+                    </div>
+                `;
+            });
+            mostContent += '</div>';
+
+            let leastContent = '<div class="space-y-3">';
+            least.forEach(([number, count]) => {
+                leastContent += `
+                     <div class="flex items-center">
+                        <div class="number-ball text-sm !w-8 !h-8 ${ballClass} opacity-60">${number.toString().padStart(2, '0')}</div>
+                        <div class="flex-grow ml-3">
+                             <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-yellow-500 h-2.5 rounded-full" style="width: ${least[0][1] > 0 ? (count/least[0][1]*100) : 0}%"></div>
+                            </div>
+                        </div>
+                        <span class="ml-3 font-semibold text-gray-700">${count} lần</span>
+                    </div>
+                `;
+            });
+            leastContent += '</div>';
+
+            let finalHtml = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-semibold text-lg text-green-600 mb-3">Top 5 số về nhiều nhất</h3>
+                        ${mostContent}
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-lg text-red-600 mb-3">Top 5 số về ít nhất</h3>
+                        ${leastContent}
+                    </div>
+                </div>
+            `;
+            resultsContainer.innerHTML += renderCard('Thống Kê Nhanh', finalHtml);
+        };
+        
+        const displayNotSeen = (longestNotSeen, recentHistory) => {
+            const ballClass = getBallClass();
+            let notSeenContent = '<div class="flex flex-wrap gap-2">';
+            longestNotSeen.forEach(({number, days}) => {
+                notSeenContent += `
+                    <div class="text-center p-2 bg-gray-100 rounded-lg">
+                       <div class="number-ball !w-10 !h-10 text-base mx-auto ${ballClass}">${number.toString().padStart(2, '0')}</div>
+                       <p class="text-sm font-medium mt-1">${days} kỳ</p>
+                    </div>
+                `;
+            });
+            notSeenContent += '</div>';
+            
+            let historyContent = '<div class="space-y-3">';
+            recentHistory.forEach(draw => {
+                let numbersHtml = '';
+                if(currentLottery === 'power655') {
+                    numbersHtml = draw.numbers.main.map(n => `<div class="number-ball !w-8 !h-8 text-sm ${ballClass}">${n.toString().padStart(2, '0')}</div>`).join('');
+                    numbersHtml += `<div class="number-ball !w-8 !h-8 text-sm special-ball">${draw.numbers.special.toString().padStart(2, '0')}</div>`;
+                } else {
+                     numbersHtml = draw.numbers.map(n => `<div class="number-ball !w-8 !h-8 text-sm ${ballClass}">${n.toString().padStart(2, '0')}</div>`).join('');
+                }
+                historyContent += `
+                    <div class="flex items-center gap-3 p-2 bg-gray-50 rounded-md">
+                        <div class="text-sm font-semibold w-24">${draw.date}</div>
+                        <div class="flex flex-wrap gap-1">${numbersHtml}</div>
+                    </div>
+                `;
+            });
+            historyContent += '</div>';
+
+            let finalHtml = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-semibold text-lg text-gray-800 mb-3">Thống kê các số lâu chưa về (Gan)</h3>
+                        ${notSeenContent}
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-lg text-gray-800 mb-3">Kết quả 5 kỳ gần nhất</h3>
+                        ${historyContent}
+                    </div>
+                </div>
+            `;
+            resultsContainer.innerHTML += renderCard('Thống Kê Gan & Lịch Sử Gần Đây', finalHtml);
+        };
+        
+        const displayHeadTailStats = (stats) => {
+            const renderStatTable = (type, data) => {
+                let content = '<div class="grid grid-cols-5 gap-2 text-center">';
+                const maxVal = Math.max(...Object.values(data));
+                for(let i=0; i<10; i++) {
+                    const count = data[i];
+                    const height = maxVal > 0 ? (count/maxVal*100) : 0;
+                    content += `
+                        <div class="flex flex-col items-center justify-end">
+                            <span class="text-sm font-semibold">${count}</span>
+                            <div class="w-full h-24 bg-gray-200 rounded-t-md flex items-end">
+                                <div class="w-full bg-indigo-500 rounded-t-md" style="height: ${height}%"></div>
+                            </div>
+                            <div class="font-bold text-gray-700 bg-gray-100 w-full p-1 rounded-b-md">${i}</div>
+                        </div>
+                    `;
+                }
+                content += '</div>';
+                return content;
+            };
+
+            let finalHtml = `
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-semibold text-lg text-gray-800 mb-3">Thống kê đầu số</h3>
+                        ${renderStatTable('Đầu', stats.head)}
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-lg text-gray-800 mb-3">Thống kê đuôi số</h3>
+                         ${renderStatTable('Đuôi', stats.tail)}
+                    </div>
+                </div>
+            `;
+            resultsContainer.innerHTML += renderCard('Thống Kê Đầu - Đuôi (Lô tô)', finalHtml);
+        };
+
+        // --- Event Handlers ---
+        const handleTabClick = (e) => {
+            const newLottery = e.target.id.split('-')[1];
+            if (currentLottery === newLottery) return;
+
+            tabs[currentLottery].classList.remove('active');
+            currentLottery = newLottery;
+            tabs[currentLottery].classList.add('active');
+            
+            // Clear results when switching tabs
+            resultsContainer.innerHTML = '<div class="text-center p-4 bg-blue-100 text-blue-700 rounded-lg">Đã chuyển loại xổ số. Nhấn "Phân Tích" để xem thống kê.</div>';
+        };
+
+        // --- Initial Setup ---
+        Object.values(tabs).forEach(tab => tab.addEventListener('click', handleTabClick));
+        analyzeBtn.addEventListener('click', analyzeData);
+        clearDataBtn.addEventListener('click', clearData);
+        
+        // Initial welcome message
+        resultsContainer.innerHTML = '<div class="text-center p-4 bg-blue-100 text-blue-700 rounded-lg">Chọn loại xổ số và nhấn "Phân Tích" để bắt đầu.</div>';
+    });
+    </script>
+</body>
+</html>
+
