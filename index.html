@@ -129,11 +129,13 @@
         // --- Utility Functions ---
         const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-        // Generate a set of unique random numbers
-        const getUniqueRandomSet = (count, min, max) => {
+        const getUniqueRandomSet = (count, min, max, exclude = new Set()) => {
             const set = new Set();
-            while(set.size < count) {
-                set.add(getRandomInt(min, max));
+            while (set.size < count) {
+                let num = getRandomInt(min, max);
+                if (!exclude.has(num)) {
+                    set.add(num);
+                }
             }
             return Array.from(set);
         };
@@ -149,10 +151,7 @@
                 let numbers = [];
                 switch (lotteryType) {
                     case 'xsmb':
-                        // Generate 27 prizes for Northern Lottery (2-digit numbers)
-                        for (let j = 0; j < 27; j++) {
-                           numbers.push(getRandomInt(0, 99));
-                        }
+                        for (let j = 0; j < 27; j++) { numbers.push(getRandomInt(0, 99)); }
                         break;
                     case 'mega645':
                         numbers = getUniqueRandomSet(6, 1, 45);
@@ -161,7 +160,7 @@
                         const mainNumbers = getUniqueRandomSet(6, 1, 55);
                         const remaining = Array.from({length: 55}, (_, k) => k + 1).filter(n => !mainNumbers.includes(n));
                         const specialNumber = remaining[getRandomInt(0, remaining.length - 1)];
-                        numbers = { main: mainNumbers, special: specialNumber };
+                        numbers = { main: mainNumbers.sort((a,b)=>a-b), special: specialNumber };
                         break;
                 }
                 data.push({
@@ -170,7 +169,7 @@
                     numbers: numbers
                 });
             }
-            return data.reverse(); // Oldest first
+            return data.reverse();
         };
         
         // --- Data Persistence ---
@@ -198,21 +197,18 @@
             loader.classList.remove('hidden');
             resultsContainer.innerHTML = '';
             
-            // Simulate processing time
             setTimeout(() => {
                 const numDraws = parseInt(drawCountInput.value) || 200;
                 let db = loadData();
 
-                // Generate data if it doesn't exist or is insufficient
                 if (!db[currentLottery] || db[currentLottery].length < numDraws) {
                     console.log(`Tạo dữ liệu mô phỏng cho ${currentLottery}...`);
-                    db[currentLottery] = generateMockData(currentLottery, Math.max(numDraws, 200)); // Generate at least 200
+                    db[currentLottery] = generateMockData(currentLottery, Math.max(numDraws, 200));
                     saveData(db);
                 }
                 
                 const dataToAnalyze = db[currentLottery].slice(-numDraws);
 
-                // Perform all analyses
                 const allNumbers = dataToAnalyze.flatMap(d => {
                     if (currentLottery === 'power655') return [...d.numbers.main, d.numbers.special];
                     return d.numbers;
@@ -223,14 +219,13 @@
                                     {min: 1, max: 55};
 
                 const frequency = calculateFrequency(allNumbers, numberRange);
-                const { mostFrequent, leastFrequent } = getTopBottom(frequency, 5);
+                const { mostFrequent, leastFrequent } = getTopBottom(frequency, 10); // get more for prediction
                 const { longestNotSeen, recentHistory } = findLongestNotSeen(dataToAnalyze, numberRange);
-                const prediction = generatePrediction(mostFrequent, leastFrequent, longestNotSeen);
+                const prediction = generateStrategicPrediction(mostFrequent, longestNotSeen, dataToAnalyze);
                 
-                // Render results
                 displayPrediction(prediction);
                 displayFrequency(frequency);
-                displayTopLists(mostFrequent, leastFrequent);
+                displayTopLists(mostFrequent.slice(0,5), leastFrequent.slice(0,5));
                 displayNotSeen(longestNotSeen, recentHistory);
 
                 if (currentLottery === 'xsmb') {
@@ -240,17 +235,13 @@
                 
                 loader.classList.add('hidden');
 
-            }, 500); // 0.5s delay for UX
+            }, 500);
         };
 
         const calculateFrequency = (numbers, range) => {
             const freq = {};
-            for (let i = range.min; i <= range.max; i++) {
-                freq[i] = 0;
-            }
-            numbers.forEach(num => {
-                freq[num] = (freq[num] || 0) + 1;
-            });
+            for (let i = range.min; i <= range.max; i++) { freq[i] = 0; }
+            numbers.forEach(num => { freq[num] = (freq[num] || 0) + 1; });
             return freq;
         };
 
@@ -264,105 +255,135 @@
         
         const findLongestNotSeen = (draws, range) => {
             const lastSeen = {};
-            for (let i = range.min; i <= range.max; i++) {
-                lastSeen[i] = -1; // Not seen yet
-            }
+            for (let i = range.min; i <= range.max; i++) { lastSeen[i] = -1; }
 
             draws.forEach((draw, index) => {
                 const numbersInDraw = new Set(
                     currentLottery === 'power655' ? [...draw.numbers.main, draw.numbers.special] : draw.numbers
                 );
-                numbersInDraw.forEach(num => {
-                    lastSeen[num] = index;
-                });
+                numbersInDraw.forEach(num => { lastSeen[num] = index; });
             });
 
             const notSeen = [];
             const totalDraws = draws.length;
             for (let i = range.min; i <= range.max; i++) {
+                if(lastSeen[i] === -1) continue;
                 const daysAgo = totalDraws - 1 - lastSeen[i];
-                if (lastSeen[i] !== -1) {
-                   notSeen.push({ number: i, days: daysAgo });
-                }
+                notSeen.push({ number: i, days: daysAgo });
             }
             
             const longestNotSeen = notSeen.sort((a, b) => b.days - a.days).slice(0, 10);
-            
-            // For context, show the last 5 draws
             const recentHistory = draws.slice(-5).reverse();
-
             return { longestNotSeen, recentHistory };
         };
         
         const calculateHeadTailStats = (numbers) => {
              const stats = { head: {}, tail: {} };
-             for(let i=0; i<10; i++) {
-                 stats.head[i] = 0;
-                 stats.tail[i] = 0;
-             }
+             for(let i=0; i<10; i++) { stats.head[i] = 0; stats.tail[i] = 0; }
              numbers.forEach(num => {
                  const n = parseInt(num);
                  const head = Math.floor(n/10);
                  const tail = n % 10;
-                 stats.head[head]++;
-                 stats.tail[tail]++;
+                 if(stats.head[head] !== undefined) stats.head[head]++;
+                 if(stats.tail[tail] !== undefined) stats.tail[tail]++;
              });
              return stats;
         };
         
-        const generatePrediction = (mostFrequent, leastFrequent, longestNotSeen) => {
-            let predictedNumbers = new Set();
+        const generateStrategicPrediction = (mostFrequent, longestNotSeen, dataToAnalyze) => {
             const mostFreqNums = mostFrequent.map(item => parseInt(item[0]));
             const longestNotSeenNums = longestNotSeen.map(item => item.number);
-
-            let prediction = { title: '', numbers: [], note: '' };
+            let prediction = {};
 
             if (currentLottery === 'xsmb') {
-                prediction.title = 'Gợi ý Cặp số Bạch thủ & Song thủ Lô';
-                // Pick one from most frequent, one from longest not seen
-                if (mostFreqNums.length > 0) predictedNumbers.add(mostFreqNums[0]);
-                if (longestNotSeenNums.length > 0) predictedNumbers.add(longestNotSeenNums[0]);
+                const headTailStats = calculateHeadTailStats(dataToAnalyze.flatMap(d => d.numbers));
+                const sortedHeads = Object.entries(headTailStats.head).sort(([,a],[,b]) => b-a);
                 
-                // Ensure we have two distinct numbers
-                if (predictedNumbers.size < 2 && mostFreqNums.length > 1) {
-                    predictedNumbers.add(mostFreqNums[1]);
-                }
-                 while (predictedNumbers.size < 2 && longestNotSeenNums.length > predictedNumbers.size) {
-                    predictedNumbers.add(longestNotSeenNums[predictedNumbers.size-1]);
-                }
-
-                prediction.numbers = Array.from(predictedNumbers).slice(0, 2);
-                prediction.note = `Gợi ý dựa trên số có tần suất về cao nhất và số gan lâu nhất.`;
+                prediction.type = 'xsmb';
+                prediction.bạchThủ = mostFreqNums.length > 0 ? mostFreqNums[0] : null;
+                prediction.songThủ = (mostFreqNums.length > 0 && longestNotSeenNums.length > 0) ? [mostFreqNums[0], longestNotSeenNums[0]] : null;
+                prediction.chạm = sortedHeads.length > 0 ? parseInt(sortedHeads[0][0]) : null;
                 return prediction;
             }
 
             // For Mega and Power
+            const { optimalSumRange, optimalEvenOdd } = analyzeVietlottPatterns(dataToAnalyze);
+            
             const needed = 6;
-            prediction.title = `Dàn số Gợi ý cho ${currentLottery === 'mega645' ? 'Mega 6/45' : 'Power 6/55'}`;
+            let bestSet = [];
+            let bestScore = -1;
 
-            // Logic: 2 from most frequent, 2 from longest not seen, 2 random
-            mostFreqNums.slice(0, 2).forEach(n => predictedNumbers.add(n));
-    
-            let ganAdded = 0;
-            for (const n of longestNotSeenNums) {
-                if (ganAdded >= 2) break;
-                if (!predictedNumbers.has(n)) {
-                    predictedNumbers.add(n);
-                    ganAdded++;
+            // Generate and score multiple candidate sets
+            for (let i = 0; i < 2000; i++) { // Try 2000 combinations
+                let candidateSet = new Set();
+                
+                // 2 hot numbers
+                if (mostFreqNums.length >= 2) {
+                    candidateSet.add(mostFreqNums[getRandomInt(0, Math.min(4, mostFreqNums.length - 1))]);
+                    candidateSet.add(mostFreqNums[getRandomInt(0, Math.min(4, mostFreqNums.length - 1))]);
+                }
+                
+                // 2 cold (gan) numbers
+                if (longestNotSeenNums.length >= 2) {
+                    candidateSet.add(longestNotSeenNums[getRandomInt(0, Math.min(4, longestNotSeenNums.length - 1))]);
+                     candidateSet.add(longestNotSeenNums[getRandomInt(0, Math.min(4, longestNotSeenNums.length - 1))]);
+                }
+                
+                const numberRange = currentLottery === 'mega645' ? {min: 1, max: 45} : {min: 1, max: 55};
+                while (candidateSet.size < needed) {
+                    candidateSet.add(getRandomInt(numberRange.min, numberRange.max));
+                }
+                
+                const finalSet = Array.from(candidateSet);
+                const sum = finalSet.reduce((a, b) => a + b, 0);
+                const evens = finalSet.filter(n => n % 2 === 0).length;
+                
+                let score = 0;
+                // Score based on sum and even/odd ratio
+                if (sum >= optimalSumRange.min && sum <= optimalSumRange.max) score += 10;
+                if (`${evens}/${needed-evens}` === optimalEvenOdd) score += 10;
+
+                // Higher score for containing hot/cold numbers
+                finalSet.forEach(n => {
+                    if (mostFreqNums.slice(0,5).includes(n)) score += 2;
+                    if (longestNotSeenNums.slice(0,5).includes(n)) score += 1;
+                });
+                
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestSet = finalSet;
                 }
             }
-            
-            const numberRange = currentLottery === 'mega645' ? {min: 1, max: 45} : {min: 1, max: 55};
-            while (predictedNumbers.size < needed) {
-                let randomNum = getRandomInt(numberRange.min, numberRange.max);
-                predictedNumbers.add(randomNum);
-            }
 
-            prediction.numbers = Array.from(predictedNumbers).sort((a,b) => a - b);
-            prediction.note = 'Dàn số được tạo ra bằng cách kết hợp các số có tần suất cao, các số gan và các số ngẫu nhiên.';
+            prediction.type = 'vietlott';
+            prediction.numbers = bestSet.sort((a,b)=>a-b);
+            prediction.sum = bestSet.reduce((a,b)=>a+b, 0);
+            prediction.evenOdd = `${bestSet.filter(n=>n%2===0).length}/${bestSet.filter(n=>n%2!==0).length}`;
+            prediction.analysis = `Dàn số được tối ưu hóa dựa trên phân tích ${dataToAnalyze.length} kỳ gần nhất. Kết quả thường có Tổng trong khoảng ${optimalSumRange.min}-${optimalSumRange.max} và Tỷ lệ Chẵn/Lẻ là ${optimalEvenOdd}.`;
             return prediction;
         };
-        
+
+        const analyzeVietlottPatterns = (draws) => {
+            const sums = draws.map(d => d.numbers.main.reduce((a, b) => a + b, 0)).sort((a,b)=>a-b);
+            const evenOddCounts = {};
+            
+            draws.forEach(d => {
+                const evens = d.numbers.main.filter(n => n % 2 === 0).length;
+                const key = `${evens}/${6-evens}`;
+                evenOddCounts[key] = (evenOddCounts[key] || 0) + 1;
+            });
+
+            const q1 = sums[Math.floor(sums.length * 0.25)];
+            const q3 = sums[Math.floor(sums.length * 0.75)];
+
+            const sortedEvenOdd = Object.entries(evenOddCounts).sort(([,a],[,b])=>b-a);
+
+            return {
+                optimalSumRange: { min: q1, max: q3 }, // Interquartile range
+                optimalEvenOdd: sortedEvenOdd.length > 0 ? sortedEvenOdd[0][0] : "3/3"
+            };
+        };
+
         // --- Rendering Functions ---
         const getBallClass = () => {
             switch(currentLottery) {
@@ -383,23 +404,54 @@
         };
         
         const displayPrediction = (prediction) => {
-            if (!prediction || !prediction.numbers || prediction.numbers.length === 0) return;
-
+            let content = '';
             const ballClass = getBallClass();
-            let numbersHtml = prediction.numbers.map(n => 
-                `<div class="number-ball !w-12 !h-12 text-xl mx-auto ${ballClass}">${n.toString().padStart(2, '0')}</div>`
-            ).join('');
 
-            let content = `
-                <div class="text-center">
-                    <div class="flex flex-wrap justify-center gap-4 mb-4">${numbersHtml}</div>
-                    <p class="text-sm text-gray-600 italic mt-4">${prediction.note}</p>
-                    <div class="mt-4 p-2 bg-red-100 border border-red-300 text-red-700 text-xs rounded-md">
-                        <strong>Lưu ý:</strong> Dự đoán này hoàn toàn dựa trên phân tích dữ liệu mô phỏng, chỉ mang tính chất tham khảo và giải trí. Không có gì đảm bảo chắc chắn.
+            if (prediction.type === 'xsmb') {
+                const renderNumber = (num) => num !== null ? `<div class="number-ball !w-12 !h-12 text-xl mx-auto ${ballClass}">${num.toString().padStart(2, '0')}</div>` : 'N/A';
+                content = `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                        <div>
+                            <h4 class="font-semibold mb-2">Bạch Thủ Lô Gợi Ý</h4>
+                            ${renderNumber(prediction.bạchThủ)}
+                            <p class="text-xs text-gray-500 mt-2">Dựa trên số có tần suất về cao nhất.</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Song Thủ Lô Gợi Ý</h4>
+                            <div class="flex justify-center gap-2">
+                                ${prediction.songThủ ? prediction.songThủ.map(n => renderNumber(n)).join('') : renderNumber(null)}
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">Kết hợp giữa số nóng và số gan.</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Dàn Đề Chạm Gợi Ý</h4>
+                            ${renderNumber(prediction.chạm)}
+                            <p class="text-xs text-gray-500 mt-2">Gợi ý các số có chứa đầu/đuôi ${prediction.chạm} dựa trên đầu số về nhiều nhất.</p>
+                        </div>
                     </div>
+                `;
+            } else if (prediction.type === 'vietlott') {
+                let numbersHtml = prediction.numbers.map(n => 
+                    `<div class="number-ball !w-12 !h-12 text-xl mx-auto ${ballClass}">${n.toString().padStart(2, '0')}</div>`
+                ).join('');
+                content = `
+                    <div class="text-center">
+                        <div class="flex flex-wrap justify-center gap-4 mb-4">${numbersHtml}</div>
+                        <div class="flex justify-center gap-6 text-sm my-4">
+                            <span><strong>Tổng:</strong> ${prediction.sum}</span>
+                            <span><strong>Chẵn/Lẻ:</strong> ${prediction.evenOdd}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 italic">${prediction.analysis}</p>
+                    </div>
+                `;
+            }
+
+            let finalHtml = `${content}
+                <div class="mt-4 p-2 bg-red-100 border border-red-300 text-red-700 text-xs rounded-md">
+                    <strong>Lưu ý:</strong> Dự đoán này hoàn toàn dựa trên phân tích dữ liệu mô phỏng, chỉ mang tính chất tham khảo và giải trí. Không có gì đảm bảo chắc chắn.
                 </div>
             `;
-            resultsContainer.innerHTML += renderCard(`Dự đoán cho kỳ quay tiếp theo`, content);
+            resultsContainer.innerHTML += renderCard(`Dự đoán theo chiến lược người chơi`, finalHtml);
         };
         
         const displayFrequency = (frequency) => {
@@ -448,7 +500,7 @@
                         <div class="number-ball text-sm !w-8 !h-8 ${ballClass} opacity-60">${number.toString().padStart(2, '0')}</div>
                         <div class="flex-grow ml-3">
                              <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                <div class="bg-yellow-500 h-2.5 rounded-full" style="width: ${least[0][1] > 0 ? (count/least[0][1]*100) : 0}%"></div>
+                                <div class="bg-yellow-500 h-2.5 rounded-full" style="width: ${least.length > 0 && least[0][1] > 0 ? (count/least[0][1]*100) : 0}%"></div>
                             </div>
                         </div>
                         <span class="ml-3 font-semibold text-gray-700">${count} lần</span>
@@ -563,7 +615,6 @@
             currentLottery = newLottery;
             tabs[currentLottery].classList.add('active');
             
-            // Clear results when switching tabs
             resultsContainer.innerHTML = '<div class="text-center p-4 bg-blue-100 text-blue-700 rounded-lg">Đã chuyển loại xổ số. Nhấn "Phân Tích" để xem thống kê.</div>';
         };
 
@@ -572,10 +623,8 @@
         analyzeBtn.addEventListener('click', analyzeData);
         clearDataBtn.addEventListener('click', clearData);
         
-        // Initial welcome message
         resultsContainer.innerHTML = '<div class="text-center p-4 bg-blue-100 text-blue-700 rounded-lg">Chọn loại xổ số và nhấn "Phân Tích" để bắt đầu.</div>';
     });
     </script>
 </body>
 </html>
-
