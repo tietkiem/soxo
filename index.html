@@ -3,738 +3,496 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Công cụ Thống kê Xổ số</title>
+    <title>Công cụ Thống kê Xổ số Toàn năng</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5;
-        }
-        .tab-button {
-            transition: all 0.3s ease;
-        }
-        .tab-button.active {
-            background-color: #1d4ed8;
-            color: white;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-        }
-        .stat-card {
-            background-color: white;
-            border-radius: 0.75rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            transition: transform 0.2s ease-in-out;
-        }
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-        .number-ball {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 2.5rem;
-            height: 2.5rem;
-            border-radius: 50%;
-            font-weight: 600;
-            margin: 0.25rem;
-            color: white;
-            flex-shrink: 0;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
+        .tab-button.active { background-color: #1d4ed8; color: white; }
+        .main-tab.active { display: block; }
+        .main-tab { display: none; }
+        .stat-card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        .number-ball { display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; font-weight: 600; margin: 0.25rem; color: white; flex-shrink: 0; }
         .xsmb-ball { background-color: #dc2626; }
         .mega645-ball { background-color: #16a34a; }
         .power655-ball { background-color: #f97316; }
-        .bingo18-ball { background-color: #8b5cf6; }
         .special-ball { background-color: #ca8a04 !important; }
-        
-        #loader {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .progress-bar {
-            transition: width 0.3s ease-in-out;
-        }
+        #loader { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .progress-bar { transition: width 0.3s ease-in-out; }
     </style>
 </head>
 <body class="p-4 md:p-8">
-
     <div class="max-w-7xl mx-auto">
         <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Công cụ Thống kê & Phân tích Xổ số</h1>
-            <p class="text-gray-600 mt-2">Phân tích tần suất, chu kỳ và kiểm thử thuật toán dự đoán.</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Công cụ Thống kê Xổ số Toàn năng</h1>
+            <p class="text-gray-600 mt-2">Phân tích, cập nhật và quản lý dữ liệu ngay trên trình duyệt.</p>
         </header>
 
-        <div class="bg-white p-4 rounded-xl shadow-lg mb-8">
-            <div id="data-warning" class="p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-md">
-                <p class="font-bold">Trạng thái dữ liệu:</p>
-                <p>Đang kiểm tra... Vui lòng chờ.</p>
-            </div>
+        <!-- Main Tabs -->
+        <div class="mb-6 flex justify-center border-b border-gray-300">
+            <button data-tab="analyzer" class="main-tab-button py-3 px-6 font-semibold text-lg text-gray-600 border-b-4 border-transparent hover:border-blue-500 hover:text-blue-600 transition-colors active">Phân tích & Thống kê</button>
+            <button data-tab="manager" class="main-tab-button py-3 px-6 font-semibold text-lg text-gray-600 border-b-4 border-transparent hover:border-blue-500 hover:text-blue-600 transition-colors">Quản lý & Cài đặt</button>
+        </div>
 
-            <!-- Controls -->
-            <div class="mt-6">
-                <div class="flex flex-wrap items-center justify-center gap-4">
-                    <div id="tabs" class="flex flex-wrap justify-center space-x-2 bg-gray-200 p-2 rounded-lg">
-                        <button id="tab-xsmb" class="tab-button px-4 py-2 font-semibold rounded-md active">XSMB (Loto 2 số)</button>
-                        <button id="tab-mega645" class="tab-button px-4 py-2 font-semibold rounded-md">Mega 6/45</button>
-                        <button id="tab-power655" class="tab-button px-4 py-2 font-semibold rounded-md">Power 6/55</button>
-                        <button id="tab-bingo18" class="tab-button px-4 py-2 font-semibold rounded-md">Bingo18</button>
-                    </div>
+        <!-- Analyzer Tab Content -->
+        <div id="analyzer" class="main-tab active">
+            <!-- Analyzer content will be dynamically generated -->
+        </div>
 
-                    <div class="flex items-center space-x-2">
-                        <label for="draw-count" class="font-medium text-gray-700">Số kỳ phân tích:</label>
-                        <input type="number" id="draw-count" value="100" class="w-24 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div class="flex space-x-2">
-                         <button id="analyze-btn" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md">Phân Tích Hiện Tại</button>
-                         <button id="clear-data-btn" class="bg-red-500 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-red-600 transition-colors shadow-md">Xóa & Tải Lại</button>
+        <!-- Manager Tab Content -->
+        <div id="manager" class="main-tab">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Settings Card -->
+                <div class="stat-card p-6">
+                    <h2 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4">Cài đặt GitHub</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="gh-username" class="block text-sm font-medium text-gray-700">Tên người dùng GitHub</label>
+                            <input type="text" id="gh-username" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label for="gh-repo" class="block text-sm font-medium text-gray-700">Tên Kho lưu trữ (Repository)</label>
+                            <input type="text" id="gh-repo" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label for="gh-token" class="block text-sm font-medium text-gray-700">Personal Access Token (PAT)</label>
+                            <input type="password" id="gh-token" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                             <p class="mt-2 text-xs text-gray-500">Token của bạn chỉ được lưu trên trình duyệt này. <a href="https://github.com/settings/tokens/new" target="_blank" class="text-blue-600 hover:underline">Tạo token mới tại đây</a> (chọn scope 'repo').</p>
+                        </div>
+                        <button id="save-settings-btn" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700">Lưu Cài đặt</button>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Data Management -->
-        <div class="stat-card p-4 md:p-6 mb-8">
-             <h2 class="text-xl font-bold text-gray-800 border-b-2 border-gray-200 pb-2 mb-4">Quản lý Dữ liệu</h2>
-             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                 <div class="flex flex-col sm:flex-row gap-2">
-                     <button id="update-data-btn" class="w-full bg-indigo-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors shadow-md">Cập Nhật Dữ Liệu Mới</button>
-                     <button id="backup-data-btn" class="w-full bg-gray-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-gray-700 transition-colors shadow-md">Sao Lưu Dữ Liệu</button>
-                 </div>
-                 <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                    <p><strong>Nguồn dữ liệu:</strong> <code class="font-mono">xosothudo.com.vn</code> (XSMB), <code class="font-mono">vietlott.vn</code> (Vietlott). Bingo18 đang phát triển.</p>
-                    <p><strong>Sao lưu:</strong> Tải toàn bộ dữ liệu hiện tại về máy (dạng file .json) để bạn có thể lưu trữ hoặc tải lên GitHub.</p>
-                 </div>
-             </div>
-             <div id="data-progress-container" class="mt-4 hidden">
-                <p id="data-progress-label" class="text-sm font-semibold text-center mb-1"></p>
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div id="data-progress-bar" class="bg-blue-600 h-2.5 rounded-full progress-bar" style="width: 0%"></div>
+                <!-- Data Management Card -->
+                <div class="stat-card p-6">
+                    <h2 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4">Quản lý Dữ liệu</h2>
+                     <div id="data-status-display" class="space-y-2 text-sm mb-4 p-3 bg-gray-50 rounded-lg"></div>
+                     <button id="update-all-btn" class="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Cập nhật & Lưu lên GitHub</button>
+                     <div id="data-progress-container" class="mt-4 hidden">
+                        <p id="data-progress-label" class="text-sm font-semibold text-center mb-1"></p>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5"><div id="data-progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div></div>
+                     </div>
+                     <div id="op-status" class="mt-4 text-center font-semibold"></div>
                 </div>
-             </div>
-             <div id="data-status" class="mt-3 text-center"></div>
-        </div>
-        
-        <!-- Loading Spinner -->
-        <div id="loader-container" class="text-center my-10 hidden">
-            <div id="loader" class="mx-auto"></div>
-            <p class="mt-4 text-gray-600 font-semibold">Đang tính toán và phân tích dữ liệu...</p>
-        </div>
-        
-        <!-- Main Results -->
-        <div id="results-container" class="space-y-8"></div>
-
-        <!-- Advanced Analysis & Backtesting -->
-        <div class="mt-10">
-             <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">Kiểm Thử & Tra Cứu Nâng Cao</h2>
-             <div class="stat-card p-4 md:p-6">
-                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                     <div>
-                        <label for="backtest-date" class="block text-sm font-medium text-gray-700 mb-1">Chọn ngày</label>
-                        <input type="date" id="backtest-date" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
-                     </div>
-                     <div>
-                        <label for="number-input" class="block text-sm font-medium text-gray-700 mb-1">Nhập số tra cứu</label>
-                        <input type="number" id="number-input" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
-                     </div>
-                     <div class="flex flex-col sm:flex-row gap-2 lg:col-span-2">
-                        <button id="backtest-btn" class="w-full bg-green-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md">Kiểm Thử Kết Quả</button>
-                        <button id="probability-btn" class="w-full bg-purple-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-purple-700 transition-colors shadow-md">Tra Cứu Xác Suất</button>
-                    </div>
-                 </div>
-                 <div id="advanced-results-container" class="mt-6"></div>
-             </div>
+            </div>
         </div>
     </div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- DOM Elements ---
-        const tabs = {
-            xsmb: document.getElementById('tab-xsmb'),
-            mega645: document.getElementById('tab-mega645'),
-            power655: document.getElementById('tab-power655'),
-            bingo18: document.getElementById('tab-bingo18')
-        };
-        const drawCountInput = document.getElementById('draw-count');
-        const analyzeBtn = document.getElementById('analyze-btn');
-        const clearDataBtn = document.getElementById('clear-data-btn');
-        const loader = document.getElementById('loader-container');
-        const resultsContainer = document.getElementById('results-container');
-        const dataWarning = document.getElementById('data-warning');
-        
-        // Data management elements
-        const updateDataBtn = document.getElementById('update-data-btn');
-        const backupDataBtn = document.getElementById('backup-data-btn');
-        const dataProgressContainer = document.getElementById('data-progress-container');
-        const dataProgressBar = document.getElementById('data-progress-bar');
-        const dataProgressLabel = document.getElementById('data-progress-label');
-        const dataStatus = document.getElementById('data-status');
-        
-        // Advanced analysis elements
-        const backtestDateInput = document.getElementById('backtest-date');
-        const numberInput = document.getElementById('number-input');
-        const backtestBtn = document.getElementById('backtest-btn');
-        const probabilityBtn = document.getElementById('probability-btn');
-        const advancedResultsContainer = document.getElementById('advanced-results-container');
-        
-        // --- App State ---
-        let currentLottery = 'xsmb';
-        const DB_KEY = 'lotteryAnalysisData';
-        const CORS_PROXY = 'https://api.allorigins.win/get?url=';
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- GLOBAL STATE & CONFIG ---
+    let ALL_DATA = {};
+    let GITHUB_SETTINGS = {};
+    let LATEST_DATA_SHA = null;
+    const LOTTERY_TYPES = ['xsmb', 'mega645', 'power655'];
+    const CORS_PROXY = 'https://api.allorigins.win/get?url=';
 
-        // --- Utility Functions ---
-        const formatDate = (date) => date.toISOString().split('T')[0];
-        const delay = ms => new Promise(res => setTimeout(res, ms));
-        const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    // --- DOM ELEMENTS ---
+    const mainTabButtons = document.querySelectorAll('.main-tab-button');
+    const mainTabs = document.querySelectorAll('.main-tab');
+    const analyzerContainer = document.getElementById('analyzer');
+    // Settings
+    const ghUsernameInput = document.getElementById('gh-username');
+    const ghRepoInput = document.getElementById('gh-repo');
+    const ghTokenInput = document.getElementById('gh-token');
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    // Data Management
+    const dataStatusDisplay = document.getElementById('data-status-display');
+    const updateAllBtn = document.getElementById('update-all-btn');
+    const opStatus = document.getElementById('op-status');
+    const dataProgressContainer = document.getElementById('data-progress-container');
+    const dataProgressBar = document.getElementById('data-progress-bar');
+    const dataProgressLabel = document.getElementById('data-progress-label');
 
-        // --- Data Management ---
-        const saveData = (data) => {
-            try { localStorage.setItem(DB_KEY, JSON.stringify(data)); }
-            catch (e) { console.error("Lỗi khi lưu dữ liệu:", e); }
+    // --- UTILITY FUNCTIONS ---
+    const formatDate = (date) => date.toISOString().split('T')[0];
+    const delay = ms => new Promise(res => setTimeout(res, ms));
+
+    // --- SETTINGS MANAGEMENT ---
+    const saveSettings = () => {
+        GITHUB_SETTINGS = {
+            username: ghUsernameInput.value.trim(),
+            repo: ghRepoInput.value.trim(),
+            token: ghTokenInput.value.trim()
+        };
+        localStorage.setItem('githubSettings', JSON.stringify(GITHUB_SETTINGS));
+        alert('Cài đặt đã được lưu vào trình duyệt này!');
+        location.reload(); // Reload to apply settings
+    };
+
+    const loadSettings = () => {
+        const settings = JSON.parse(localStorage.getItem('githubSettings') || '{}');
+        if (settings.username && settings.repo && settings.token) {
+            GITHUB_SETTINGS = settings;
+            ghUsernameInput.value = settings.username;
+            ghRepoInput.value = settings.repo;
+            ghTokenInput.value = settings.token; // Keep it hidden for security
+            return true;
+        }
+        return false;
+    };
+
+    // --- GITHUB API FUNCTIONS ---
+    const githubApiRequest = async (endpoint, method = 'GET', body = null) => {
+        const url = `https://api.github.com/repos/${GITHUB_SETTINGS.username}/${GITHUB_SETTINGS.repo}/${endpoint}`;
+        const headers = {
+            'Authorization': `token ${GITHUB_SETTINGS.token}`,
+            'Accept': 'application/vnd.github.v3+json',
+        };
+        const options = { method, headers };
+        if (body) options.body = JSON.stringify(body);
+
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`GitHub API Error (${response.status}): ${errorData.message}`);
+        }
+        return response.status === 204 ? null : response.json();
+    };
+
+    const loadDataFromGithub = async () => {
+        if (!GITHUB_SETTINGS.username) {
+            showAnalyzerMessage('Vui lòng vào tab "Quản lý & Cài đặt" để cấu hình thông tin GitHub của bạn.');
+            return false;
+        }
+        try {
+            opStatus.textContent = 'Đang tải cơ sở dữ liệu từ GitHub...';
+            const fileData = await githubApiRequest('contents/data.json');
+            LATEST_DATA_SHA = fileData.sha;
+            const content = atob(fileData.content);
+            ALL_DATA = JSON.parse(content);
+            opStatus.textContent = 'Tải dữ liệu thành công.';
+            return true;
+        } catch (error) {
+            if (error.message.includes('404')) {
+                opStatus.textContent = 'Không tìm thấy file data.json. Dữ liệu sẽ được tạo mới khi bạn cập nhật.';
+                ALL_DATA = {};
+                LATEST_DATA_SHA = null;
+                return true; // It's not a fatal error, we can create the file
+            }
+            opStatus.textContent = `Lỗi tải dữ liệu: ${error.message}`;
+            showAnalyzerMessage(`Lỗi tải dữ liệu từ GitHub: ${error.message}`);
+            return false;
+        }
+    };
+
+    const saveDataToGithub = async () => {
+        opStatus.textContent = 'Đang chuẩn bị lưu dữ liệu lên GitHub...';
+        const content = JSON.stringify(ALL_DATA, null, 2);
+        const message = `[Data Update] Cập nhật dữ liệu ngày ${formatDate(new Date())}`;
+
+        const commitData = {
+            message,
+            content: btoa(unescape(encodeURIComponent(content))) // Correctly encode UTF-8 strings
         };
 
-        const loadData = () => {
-            const data = localStorage.getItem(DB_KEY);
-            return data ? JSON.parse(data) : {};
-        };
-        
-        const clearDataAndRefetch = async () => {
-            if (!confirm('Bạn có chắc muốn xóa toàn bộ dữ liệu và tải lại từ đầu? Quá trình này có thể mất vài phút.')) return;
-            localStorage.removeItem(DB_KEY);
-            resultsContainer.innerHTML = '';
-            advancedResultsContainer.innerHTML = '';
-            await initializeData();
-        };
+        if (LATEST_DATA_SHA) {
+            commitData.sha = LATEST_DATA_SHA;
+        }
 
-        const checkDataOrigin = () => {
-             const db = loadData();
-             const data = db[currentLottery];
-             if (data && data.length > 0) {
-                const lastDate = data[data.length-1].date;
-                dataWarning.className = "p-3 bg-green-100 border-l-4 border-green-500 text-green-700 rounded-md";
-                dataWarning.innerHTML = `<p class="font-bold">Đang sử dụng dữ liệu thật.</p><p>Có ${data.length} kỳ quay, cập nhật lần cuối ngày ${lastDate}.</p>`;
-             } else {
-                dataWarning.className = "p-3 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-md";
-                dataWarning.innerHTML = `<p class="font-bold">Không có dữ liệu!</p><p>Công cụ sẽ tự động tải dữ liệu gốc (365 ngày). Vui lòng chờ.</p>`;
-             }
-        };
-        
-        // --- Data Fetching ---
-        const fetchXSMBDataFromXoSoThuDo = async (dateStr) => {
-            const dayOfWeekMapping = { 0: 'chu-nhat', 1: 'thu-2', 2: 'thu-3', 3: 'thu-4', 4: 'thu-5', 5: 'thu-6', 6: 'thu-7' };
-            const [year, month, day] = dateStr.split('-');
-            const dateObj = new Date(dateStr);
-            dateObj.setMinutes(dateObj.getMinutes() + dateObj.getTimezoneOffset());
-            const dayOfWeekStr = dayOfWeekMapping[dateObj.getDay()];
-            const url = `http://xosothudo.com.vn/xsmb-${dayOfWeekStr}-${day}-${month}-${year}.html`;
-            try {
-                const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`);
-                if (!response.ok) return null;
-                const data = await response.json();
-                const html = data.contents;
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const resultsContainer = doc.querySelector('div.box-ket-qua');
-                if (!resultsContainer) return null;
-                const numbers = [];
-                const prizeSpans = resultsContainer.querySelectorAll('div[class^="giai"] span');
-                prizeSpans.forEach(span => {
-                    const parts = span.textContent.split(/\D+/); 
-                    parts.forEach(p => {
-                        const trimmedPart = p.trim();
-                        if (trimmedPart.length >= 2) {
-                            const num = parseInt(trimmedPart.slice(-2));
-                            if (!isNaN(num)) numbers.push(num);
-                        }
-                    });
+        try {
+            const result = await githubApiRequest('contents/data.json', 'PUT', commitData);
+            LATEST_DATA_SHA = result.content.sha;
+            opStatus.textContent = 'Lưu dữ liệu lên GitHub thành công!';
+            return true;
+        } catch (error) {
+            opStatus.textContent = `Lỗi lưu dữ liệu: ${error.message}`;
+            console.error(error);
+            return false;
+        }
+    };
+
+    // --- DATA FETCHING & PARSING (from lottery sites) ---
+    // These functions are identical to the previous data_manager.html
+    const fetchXSMBDataFromXoSoThuDo = async (dateStr) => { /* ... */ 
+        const dayOfWeekMapping = { 0: 'chu-nhat', 1: 'thu-2', 2: 'thu-3', 3: 'thu-4', 4: 'thu-5', 5: 'thu-6', 6: 'thu-7' };
+        const [year, month, day] = dateStr.split('-');
+        const dateObj = new Date(dateStr);
+        dateObj.setMinutes(dateObj.getMinutes() + dateObj.getTimezoneOffset());
+        const dayOfWeekStr = dayOfWeekMapping[dateObj.getDay()];
+        const url = `http://xosothudo.com.vn/xsmb-${dayOfWeekStr}-${day}-${month}-${year}.html`;
+        try {
+            const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`);
+            if (!response.ok) return null;
+            const data = await response.json();
+            const html = data.contents;
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const resultsContainer = doc.querySelector('div.box-ket-qua');
+            if (!resultsContainer) return null;
+            const numbers = [];
+            const prizeSpans = resultsContainer.querySelectorAll('div[class^="giai"] span');
+            prizeSpans.forEach(span => {
+                const parts = span.textContent.split(/\D+/); 
+                parts.forEach(p => {
+                    const trimmedPart = p.trim();
+                    if (trimmedPart.length >= 2) {
+                        const num = parseInt(trimmedPart.slice(-2));
+                        if (!isNaN(num)) numbers.push(num);
+                    }
                 });
-                if (numbers.length === 0) return null;
-                return { date: dateStr, numbers };
-            } catch (error) {
-                console.error(`Lỗi khi tải dữ liệu từ XoSoThuDo cho ngày ${dateStr}:`, error);
-                return null;
-            }
-        };
-        
-        const fetchVietlottData = async (dateStr, gameTypeId) => {
-            const url = `https://vietlott.vn/api/w/service/`;
-            const payload = {
-                Filter: {
-                    Id: null, GameTypeId: gameTypeId, DrawId: 0,
-                    FromDate: `${dateStr}T00:00:00`, ToDate: `${dateStr}T23:59:59`
-                }, PageIndex: 1, PageSize: 20
-            };
-            try {
-                const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) return null;
-                const data = await response.json();
-                const responseContent = JSON.parse(data.contents);
-                const drawResult = responseContent?.Data?.DrawResult?.[0];
-                if (!drawResult || !drawResult.DrawedNumbers) return null;
+            });
+            if (numbers.length === 0) return null;
+            return { date: dateStr, numbers };
+        } catch (error) { console.error(`Lỗi XSMB ngày ${dateStr}:`, error); return null; }
+    };
+    const fetchVietlottData = async (dateStr, gameTypeId) => { /* ... */
+        const url = `https://vietlott.vn/api/w/service/`;
+        const payload = { Filter: { GameTypeId: gameTypeId, FromDate: `${dateStr}T00:00:00`, ToDate: `${dateStr}T23:59:59` }, PageIndex: 1, PageSize: 20 };
+        try {
+            const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) return null;
+            const data = await response.json();
+            const responseContent = JSON.parse(data.contents);
+            const drawResult = responseContent?.Data?.DrawResult?.[0];
+            if (!drawResult || !drawResult.DrawedNumbers) return null;
+            const allNumbers = drawResult.DrawedNumbers;
+            if (gameTypeId === 1) return { date: dateStr, numbers: allNumbers.sort((a,b)=>a-b) };
+            if (gameTypeId === 2) return { date: dateStr, numbers: { main: allNumbers.slice(0, 6).sort((a,b)=>a-b), special: allNumbers[6] }};
+            return null;
+        } catch (error) { console.error(`Lỗi Vietlott ngày ${dateStr}:`, error); return null; }
+    };
+    const fetchAndParseData = async (dates, lotteryType) => { /* ... */
+        const results = [];
+        let fetchedCount = 0;
+        dataProgressContainer.classList.remove('hidden');
 
-                const allNumbers = drawResult.DrawedNumbers;
-                if (gameTypeId === 1) { // Mega 6/45
-                    return { date: dateStr, numbers: allNumbers.sort((a,b)=>a-b) };
-                } else if (gameTypeId === 2) { // Power 6/55
-                    const mainNumbers = allNumbers.slice(0, 6).sort((a,b)=>a-b);
-                    const specialNumber = allNumbers[6];
-                    return { date: dateStr, numbers: { main: mainNumbers, special: specialNumber }};
-                }
-                return null;
-            } catch (error) {
-                 console.error(`Lỗi khi tải dữ liệu Vietlott cho ngày ${dateStr}:`, error);
-                return null;
-            }
-        };
+        for (const date of dates) {
+            let result = null;
+            if (lotteryType === 'xsmb') result = await fetchXSMBDataFromXoSoThuDo(date);
+            else if (lotteryType === 'mega645') result = await fetchVietlottData(date, 1);
+            else if (lotteryType === 'power655') result = await fetchVietlottData(date, 2);
+            if (result) results.push(result);
+            fetchedCount++;
+            const progress = Math.round((fetchedCount / dates.length) * 100);
+            dataProgressBar.style.width = `${progress}%`;
+            dataProgressLabel.textContent = `[${lotteryType.toUpperCase()}] Đang tải... [${fetchedCount}/${dates.length}] - Ngày ${date}`;
+            await delay(200);
+        }
+        dataProgressContainer.classList.add('hidden');
+        return results;
+    };
+    
+    // --- DATA UPDATE WORKFLOW ---
+    const updateDataForType = async (lotteryType) => {
+        const existingData = ALL_DATA[lotteryType] || [];
+        let datesToFetch = [];
 
-        const fetchAndParseData = async (dates, lotteryType) => {
-            const results = [];
-            let fetchedCount = 0;
-            dataProgressContainer.classList.remove('hidden');
-
-            for (const date of dates) {
-                let result = null;
-                if (lotteryType === 'xsmb') {
-                    result = await fetchXSMBDataFromXoSoThuDo(date);
-                } else if (lotteryType === 'mega645') {
-                    result = await fetchVietlottData(date, 1);
-                } else if (lotteryType === 'power655') {
-                    result = await fetchVietlottData(date, 2);
-                } else {
-                    console.warn(`Chức năng tự động tải dữ liệu cho ${lotteryType} chưa được hỗ trợ.`);
-                }
-                
-                if (result) results.push(result);
-                
-                fetchedCount++;
-                const progress = Math.round((fetchedCount / dates.length) * 100);
-                dataProgressBar.style.width = `${progress}%`;
-                dataProgressLabel.textContent = `Đang tải... [${fetchedCount}/${dates.length}] - Ngày ${date}`;
-                await delay(200);
-            }
-            dataProgressContainer.classList.add('hidden');
-            return results;
-        };
-
-        const fetchInitialData = async () => {
-            dataStatus.innerHTML = `<p class="text-blue-600 font-semibold">Đang chuẩn bị tải dữ liệu gốc cho 365 ngày...</p>`;
+        if (existingData.length === 0) {
+            opStatus.textContent = `Chưa có dữ liệu cho ${lotteryType.toUpperCase()}, đang tải 365 ngày gốc...`;
             const today = new Date();
-            const datesToFetch = [];
             for (let i = 0; i < 365; i++) {
                 const date = new Date(today);
                 date.setDate(today.getDate() - i);
                 datesToFetch.push(formatDate(date));
             }
-            
-            const fetchedData = await fetchAndParseData(datesToFetch.reverse(), currentLottery);
-
-            if (fetchedData.length > 0) {
-                const db = loadData();
-                db[currentLottery] = fetchedData.map(d => ({...d, id: `KY-REAL-${d.date}`, is_mock: false}));
-                saveData(db);
-                dataStatus.innerHTML = `<p class="text-green-600 font-semibold">Tải thành công ${fetchedData.length} ngày dữ liệu gốc!</p>`;
-            } else {
-                dataStatus.innerHTML = `<p class="text-red-600 font-semibold">Tải dữ liệu thất bại. Vui lòng kiểm tra kết nối hoặc thử lại sau.</p>`;
-            }
-        };
-
-        const updateNewData = async () => {
-            const db = loadData();
-            const existingData = db[currentLottery] || [];
-            if (existingData.length === 0) {
-                dataStatus.innerHTML = `<p class="text-yellow-500">Không có dữ liệu gốc. Đang tiến hành tải lại từ đầu.</p>`;
-                await fetchInitialData();
-                return;
-            }
-
+            datesToFetch.reverse();
+        } else {
             const lastDate = new Date(existingData[existingData.length - 1].date);
             const today = new Date();
             today.setHours(0,0,0,0);
-            
-            const datesToFetch = [];
             let currentDate = new Date(lastDate);
             currentDate.setDate(currentDate.getDate() + 1);
-
             while(currentDate <= today) {
                 datesToFetch.push(formatDate(new Date(currentDate)));
                 currentDate.setDate(currentDate.getDate() + 1);
             }
+        }
+
+        if (datesToFetch.length === 0) {
+            opStatus.textContent = `Dữ liệu cho ${lotteryType.toUpperCase()} đã là mới nhất.`;
+            return false; // No changes
+        }
+
+        const newData = await fetchAndParseData(datesToFetch, lotteryType);
+        if (newData.length > 0) {
+            ALL_DATA[lotteryType] = [...existingData, ...newData];
+            opStatus.textContent = `Đã cập nhật thành công ${newData.length} ngày mới cho ${lotteryType.toUpperCase()}!`;
+            return true; // Has changes
+        } else {
+            opStatus.textContent = `Không tìm thấy dữ liệu mới cho ${lotteryType.toUpperCase()}.`;
+            return false; // No changes
+        }
+    };
+
+    const handleUpdateAll = async () => {
+        updateAllBtn.disabled = true;
+        updateAllBtn.textContent = 'Đang cập nhật...';
+        let hasChanges = false;
+        for (const type of LOTTERY_TYPES) {
+            const changed = await updateDataForType(type);
+            if (changed) hasChanges = true;
+        }
+        
+        if (hasChanges) {
+            await saveDataToGithub();
+        } else {
+            opStatus.textContent = 'Hoàn tất. Không có gì thay đổi.';
+        }
+        
+        updateAllBtn.disabled = false;
+        updateAllBtn.textContent = 'Cập nhật & Lưu lên GitHub';
+        updateStatusDisplay();
+    };
+
+    // --- UI & ANALYSIS (from public_analyzer.html) ---
+    const buildAnalyzerUI = () => {
+        analyzerContainer.innerHTML = `
+            <div id="main-controls-analyzer" class="bg-white p-4 rounded-xl shadow-lg mb-8">
+                <div class="flex flex-wrap items-center justify-center gap-4">
+                    <div id="tabs-analyzer" class="flex flex-wrap justify-center space-x-2 bg-gray-200 p-2 rounded-lg">
+                        <button data-lottery="xsmb" class="analyzer-tab-button px-4 py-2 font-semibold rounded-md active">XSMB</button>
+                        <button data-lottery="mega645" class="analyzer-tab-button px-4 py-2 font-semibold rounded-md">Mega 6/45</button>
+                        <button data-lottery="power655" class="analyzer-tab-button px-4 py-2 font-semibold rounded-md">Power 6/55</button>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label for="draw-count" class="font-medium text-gray-700">Số kỳ phân tích:</label>
+                        <input type="number" id="draw-count" value="100" class="w-24 p-2 border border-gray-300 rounded-md">
+                    </div>
+                    <button id="analyze-btn" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-blue-700">Phân Tích</button>
+                </div>
+            </div>
+            <div id="results-container" class="space-y-8"></div>
+            <div id="advanced-analysis-section" class="mt-10">
+                <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">Kiểm Thử & Tra Cứu</h2>
+                <div class="stat-card p-4 md:p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                        <div><label for="backtest-date" class="block text-sm font-medium">Chọn ngày</label><input type="date" id="backtest-date" class="w-full p-2 border rounded-md"></div>
+                        <div><label for="number-input" class="block text-sm font-medium">Nhập số</label><input type="number" id="number-input" class="w-full p-2 border rounded-md"></div>
+                        <div class="flex flex-col sm:flex-row gap-2 lg:col-span-2">
+                            <button id="backtest-btn" class="w-full bg-green-600 text-white px-4 py-2.5 rounded-lg font-semibold">Kiểm Thử</button>
+                            <button id="probability-btn" class="w-full bg-purple-600 text-white px-4 py-2.5 rounded-lg font-semibold">Tra Cứu</button>
+                        </div>
+                    </div>
+                    <div id="advanced-results-container" class="mt-6"></div>
+                </div>
+            </div>
+        `;
+        // Re-bind events for the new UI
+        document.getElementById('analyze-btn').addEventListener('click', performAnalysis);
+        document.getElementById('backtest-btn').addEventListener('click', performBacktest);
+        document.getElementById('probability-btn').addEventListener('click', performProbabilityAnalysis);
+        document.querySelectorAll('.analyzer-tab-button').forEach(btn => btn.addEventListener('click', handleAnalyzerTabClick));
+    };
+    
+    // All analysis and rendering functions (performAnalysis, displayPrediction, etc.) are identical to the previous version
+    // ... PASTE ALL ANALYSIS/RENDERING FUNCTIONS FROM PREVIOUS public_analyzer.html HERE ...
+    // This is a placeholder for brevity. The actual code would include all those functions.
+    const performAnalysis = () => {
+        const resultsContainer = document.getElementById('results-container');
+        const advancedResultsContainer = document.getElementById('advanced-results-container');
+        const drawCountInput = document.getElementById('draw-count');
+        const backtestDateInput = document.getElementById('backtest-date');
+
+        resultsContainer.innerHTML = ''; advancedResultsContainer.innerHTML = ''; 
+        const activeTab = document.querySelector('.analyzer-tab-button.active');
+        const currentLottery = activeTab.dataset.lottery;
+        
+        const allDataForType = ALL_DATA[currentLottery] || [];
+        if (allDataForType.length === 0) {
+            resultsContainer.innerHTML = `<div class="text-center p-4 bg-yellow-100 text-yellow-700 rounded-lg">Không có dữ liệu. Vui lòng cập nhật ở tab Quản lý.</div>`;
+            return;
+        }
+
+        backtestDateInput.min = allDataForType[0].date;
+        backtestDateInput.max = allDataForType[allDataForType.length - 1].date;
+        backtestDateInput.value = backtestDateInput.max;
             
-            if (datesToFetch.length === 0) {
-                dataStatus.innerHTML = `<p class="text-green-600 font-semibold">Dữ liệu của bạn đã được cập nhật mới nhất!</p>`;
-                return;
-            }
+        const numDraws = parseInt(drawCountInput.value) || 100;
+        const dataToAnalyze = allDataForType.slice(-numDraws);
 
-            dataStatus.innerHTML = `<p class="text-blue-600 font-semibold">Tìm thấy ${datesToFetch.length} ngày mới cần cập nhật...</p>`;
-            const newData = await fetchAndParseData(datesToFetch, currentLottery);
+        const { analysis, prediction } = runAnalysisPipeline(dataToAnalyze, currentLottery);
+        
+        // --- NOTE: These rendering functions need to be defined below, as they were in the previous file ---
+        displayPrediction(prediction);
+        displayFrequency(analysis.frequency);
+        displayTopLists(analysis.mostFrequent.slice(0,5), analysis.leastFrequent.slice(0,5));
+        displayNotSeen(analysis.longestNotSeen, analysis.recentHistory);
+        if (currentLottery === 'xsmb' && analysis.headTailStats) {
+            displayHeadTailStats(analysis.headTailStats);
+        }
+    };
+    const runAnalysisPipeline = (dataToAnalyze, lotteryType) => {
+        const allNumbers = dataToAnalyze.flatMap(d => (lotteryType === 'power655' && d.numbers.main) ? [...d.numbers.main, d.numbers.special] : d.numbers);
+        const numberRange = (lotteryType === 'xsmb') ? {min: 0, max: 99} : (lotteryType === 'mega645') ? {min: 1, max: 45} : {min: 1, max: 55};
+        const frequency = calculateFrequency(allNumbers, numberRange);
+        const { mostFrequent, leastFrequent } = getTopBottom(frequency, 10);
+        const { longestNotSeen, recentHistory } = findLongestNotSeen(dataToAnalyze, numberRange, lotteryType);
+        const prediction = generateStrategicPrediction(mostFrequent, longestNotSeen, dataToAnalyze, lotteryType);
+        let extraAnalysis = {};
+        if (lotteryType === 'xsmb') { extraAnalysis.headTailStats = calculateHeadTailStats(allNumbers); }
+        return { analysis: { frequency, mostFrequent, leastFrequent, longestNotSeen, recentHistory, ...extraAnalysis }, prediction };
+    };
+    const calculateFrequency = (numbers, range) => { const freq = {}; for (let i = range.min; i <= range.max; i++) { freq[i] = 0; } numbers.forEach(num => { if(freq[num] !== undefined) freq[num]++; }); return freq; };
+    const getTopBottom = (frequencyData, count) => { const sorted = Object.entries(frequencyData).sort(([,a], [,b]) => b - a); return { mostFrequent: sorted.slice(0, count), leastFrequent: sorted.slice(-count).reverse() }; };
+    const findLongestNotSeen = (draws, range, lotteryType) => { const lastSeen = {}; for (let i = range.min; i <= range.max; i++) { lastSeen[i] = -1; } draws.forEach((draw, index) => { const numbersInDraw = new Set((lotteryType === 'power655' && draw.numbers.main) ? [...draw.numbers.main, draw.numbers.special] : draw.numbers); numbersInDraw.forEach(num => { lastSeen[num] = index; }); }); const notSeen = []; const totalDraws = draws.length; for (let i = range.min; i <= range.max; i++) { if (lastSeen[i] === -1 && totalDraws > 0) notSeen.push({ number: i, days: totalDraws }); else if (lastSeen[i] > -1) notSeen.push({ number: i, days: totalDraws - 1 - lastSeen[i] }); } return { longestNotSeen: notSeen.sort((a, b) => b.days - a.days).slice(0, 10), recentHistory: draws.slice(-5).reverse() }; };
+    const calculateHeadTailStats = (numbers) => { const stats = { head: {}, tail: {} }; for(let i=0; i<10; i++) { stats.head[i] = 0; stats.tail[i] = 0; } numbers.forEach(num => { const n = parseInt(num); if(n < 0 || n > 99) return; stats.head[Math.floor(n/10)]++; stats.tail[n % 10]++; }); return stats; };
+    const analyzeVietlottPatterns = (draws) => { const mainNumbersDraws = draws.map(d => d.numbers.main).filter(Boolean); if(mainNumbersDraws.length === 0) return { optimalSumRange: { min: 0, max: 0 }, optimalEvenOdd: "3/3" }; const sums = mainNumbersDraws.map(d => d.reduce((a, b) => a + b, 0)).sort((a,b)=>a-b); const evenOddCounts = {}; mainNumbersDraws.forEach(d => { const evens = d.filter(n => n % 2 === 0).length; const key = `${evens}/${6-evens}`; evenOddCounts[key] = (evenOddCounts[key] || 0) + 1; }); const q1 = sums[Math.floor(sums.length * 0.25)] || 0; const q3 = sums[Math.floor(sums.length * 0.75)] || 0; const sortedEvenOdd = Object.entries(evenOddCounts).sort(([,a],[,b])=>b-a); return { optimalSumRange: { min: q1, max: q3 }, optimalEvenOdd: sortedEvenOdd.length > 0 ? sortedEvenOdd[0][0] : "3/3" }; };
+    const generateStrategicPrediction = (mostFrequent, longestNotSeen, dataToAnalyze, lotteryType) => { const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min; const mostFreqNums = mostFrequent.map(item => parseInt(item[0])); const longestNotSeenNums = longestNotSeen.map(item => item.number); if (lotteryType === 'xsmb') { const headTailStats = calculateHeadTailStats(dataToAnalyze.flatMap(d => d.numbers)); const sortedHeads = Object.entries(headTailStats.head).sort(([,a],[,b]) => b-a); return { type: 'xsmb', bạchThủ: mostFreqNums[0] || null, songThủ: [mostFreqNums[0] || null, longestNotSeenNums[0] || null], chạm: parseInt(sortedHeads[0]?.[0]) || null }; } if (lotteryType === 'mega645' || lotteryType === 'power655') { const { optimalSumRange, optimalEvenOdd } = analyzeVietlottPatterns(dataToAnalyze); let bestSet = []; let bestScore = -1; const needed = 6; const numberRange = lotteryType === 'mega645' ? {min: 1, max: 45} : {min: 1, max: 55}; for (let i = 0; i < 2000; i++) { let candidateSet = new Set(); if (mostFreqNums.length > 1) { candidateSet.add(mostFreqNums[getRandomInt(0, Math.min(4, mostFreqNums.length - 1))]); candidateSet.add(mostFreqNums[getRandomInt(0, Math.min(4, mostFreqNums.length - 1))]); } if (longestNotSeenNums.length > 0) { candidateSet.add(longestNotSeenNums[getRandomInt(0, Math.min(4, longestNotSeenNums.length - 1))]); } while (candidateSet.size < needed) { candidateSet.add(getRandomInt(numberRange.min, numberRange.max)); } const finalSet = Array.from(candidateSet); const sum = finalSet.reduce((a, b) => a + b, 0); const evens = finalSet.filter(n => n % 2 === 0).length; let score = (sum >= optimalSumRange.min && sum <= optimalSumRange.max) ? 10 : 0; if (`${evens}/${needed-evens}` === optimalEvenOdd) score += 10; if (score > bestScore) { bestScore = score; bestSet = finalSet; } } const finalBestSet = bestSet.sort((a,b)=>a-b); return { type: 'vietlott', numbers: finalBestSet, sum: finalBestSet.reduce((a,b)=>a+b, 0), evenOdd: `${finalBestSet.filter(n=>n%2===0).length}/${finalBestSet.filter(n=>n%2!==0).length}`, analysis: `Dàn số tối ưu. Tổng: ${optimalSumRange.min}-${optimalSumRange.max}, C/L: ${optimalEvenOdd}.` }; } return { type: 'other', analysis: 'Chưa hỗ trợ.' }; };
+    const displayPrediction = (prediction) => { const resultsContainer = document.getElementById('results-container'); const getBallClass = () => ({ xsmb: 'xsmb-ball', mega645: 'mega645-ball', power655: 'power655-ball' }[document.querySelector('.analyzer-tab-button.active').dataset.lottery] || 'bg-gray-500'); let content = ''; if (prediction.type === 'xsmb') { const renderNumber = (num) => num !== null ? `<div class="number-ball !w-12 !h-12 text-xl mx-auto ${getBallClass()}">${num.toString().padStart(2, '0')}</div>` : 'N/A'; content = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center"><div><h4 class="font-semibold mb-2">Bạch Thủ Lô</h4>${renderNumber(prediction.bạchThủ)}</div><div><h4 class="font-semibold mb-2">Song Thủ Lô</h4><div class="flex justify-center gap-2">${prediction.songThủ ? prediction.songThủ.map(n => renderNumber(n)).join('') : renderNumber(null)}</div></div><div><h4 class="font-semibold mb-2">Chạm Đề</h4>${renderNumber(prediction.chạm)}</div></div>`; } else if (prediction.type === 'vietlott') { let numbersHtml = prediction.numbers.map(n => `<div class="number-ball !w-12 !h-12 text-xl mx-auto ${getBallClass()}">${n.toString().padStart(2, '0')}</div>`).join(''); content = `<div class="text-center"><div class="flex flex-wrap justify-center gap-4 mb-4">${numbersHtml}</div><div class="flex justify-center gap-6 text-sm my-4"><span><strong>Tổng:</strong> ${prediction.sum}</span><span><strong>C/L:</strong> ${prediction.evenOdd}</span></div><p class="text-sm text-gray-600 italic">${prediction.analysis}</p></div>`; } const finalHtml = `${content}<div class="mt-4 p-2 bg-red-100 border text-red-700 text-xs rounded-md"><strong>Lưu ý:</strong> Dự đoán chỉ mang tính tham khảo.</div>`; resultsContainer.innerHTML += `<div class="stat-card p-4 md:p-6"><h2 class="text-xl font-bold text-gray-800 border-b-2 pb-2 mb-4">Dự đoán theo chiến lược</h2><div>${finalHtml}</div></div>`; };
+    const displayFrequency = (frequency) => { const resultsContainer = document.getElementById('results-container'); const getBallClass = () => ({ xsmb: 'xsmb-ball', mega645: 'mega645-ball', power655: 'power655-ball' }[document.querySelector('.analyzer-tab-button.active').dataset.lottery] || 'bg-gray-500'); const maxCount = Math.max(...Object.values(frequency)); let content = '<div class="grid grid-cols-5 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 gap-4">'; for (const [number, count] of Object.entries(frequency)) { const opacity = count > 0 ? 0.5 + (count / maxCount) * 0.5 : 0.2; content += `<div class="text-center"><div class="number-ball mx-auto ${getBallClass()}" style="opacity: ${opacity};">${number.toString().padStart(2, '0')}</div><p class="text-xs font-semibold mt-1">${count} lần</p></div>`; } content += '</div>'; resultsContainer.innerHTML += `<div class="stat-card p-4 md:p-6"><h2 class="text-xl font-bold text-gray-800 border-b-2 pb-2 mb-4">Bảng Tần Suất</h2><div>${content}</div></div>`; };
+    const displayTopLists = (most, least) => { const resultsContainer = document.getElementById('results-container'); const getBallClass = () => ({ xsmb: 'xsmb-ball', mega645: 'mega645-ball', power655: 'power655-ball' }[document.querySelector('.analyzer-tab-button.active').dataset.lottery] || 'bg-gray-500'); let mostContent = '<div class="space-y-3">'; most.forEach(([number, count]) => { mostContent += `<div class="flex items-center"><div class="number-ball text-sm !w-8 !h-8 ${getBallClass()}">${number.toString().padStart(2, '0')}</div><div class="flex-grow ml-3"><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-600 h-2.5 rounded-full" style="width: ${most.length > 0 && most[0][1]>0 ? count/most[0][1]*100 : 0}%"></div></div></div><span class="ml-3 font-semibold">${count} lần</span></div>`; }); mostContent += '</div>'; let leastContent = '<div class="space-y-3">'; least.forEach(([number, count]) => { leastContent += `<div class="flex items-center"><div class="number-ball text-sm !w-8 !h-8 ${getBallClass()} opacity-60">${number.toString().padStart(2, '0')}</div><div class="flex-grow ml-3"><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-yellow-500 h-2.5 rounded-full" style="width: ${least.length > 0 && least[0][1] > 0 ? (count/least[0][1]*100) : 0}%"></div></div></div><span class="ml-3 font-semibold">${count} lần</span></div>`; }); leastContent += '</div>'; let finalHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div><h3 class="font-semibold text-lg text-green-600 mb-3">Top 5 về nhiều</h3>${mostContent}</div><div><h3 class="font-semibold text-lg text-red-600 mb-3">Top 5 về ít</h3>${leastContent}</div></div>`; resultsContainer.innerHTML += `<div class="stat-card p-4 md:p-6"><h2 class="text-xl font-bold text-gray-800 border-b-2 pb-2 mb-4">Thống Kê Nhanh</h2><div>${finalHtml}</div></div>`; };
+    const displayNotSeen = (longestNotSeen, recentHistory) => { const resultsContainer = document.getElementById('results-container'); const getBallClass = () => ({ xsmb: 'xsmb-ball', mega645: 'mega645-ball', power655: 'power655-ball' }[document.querySelector('.analyzer-tab-button.active').dataset.lottery] || 'bg-gray-500'); const renderNumberSet = (numbers) => { const renderBall = (num, extraClass='') => `<div class="number-ball ${getBallClass()} ${extraClass}">${num.toString().padStart(2, '0')}</div>`; if (typeof numbers === 'object' && numbers.main) return numbers.main.map(n => renderBall(n)).join('') + renderBall(numbers.special, 'special-ball'); if (Array.isArray(numbers)) return numbers.map(n => renderBall(n)).join(''); return 'N/A'; }; let notSeenContent = '<div class="flex flex-wrap gap-2">'; longestNotSeen.forEach(({number, days}) => { notSeenContent += `<div class="text-center p-2 bg-gray-100 rounded-lg"><div class="number-ball !w-10 !h-10 text-base mx-auto ${getBallClass()}">${number.toString().padStart(2, '0')}</div><p class="text-sm font-medium mt-1">${days} kỳ</p></div>`; }); notSeenContent += '</div>'; let historyContent = '<div class="space-y-3">'; recentHistory.forEach(draw => { historyContent += `<div class="flex items-center gap-3 p-2 bg-gray-50 rounded-md"><div class="text-sm font-semibold w-24">${draw.date}</div><div class="flex flex-wrap gap-1">${renderNumberSet(draw.numbers)}</div></div>`; }); historyContent += '</div>'; let finalHtml = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div><h3 class="font-semibold text-lg mb-3">Gan</h3>${notSeenContent}</div><div><h3 class="font-semibold text-lg mb-3">5 kỳ gần nhất</h3>${historyContent}</div></div>`; resultsContainer.innerHTML += `<div class="stat-card p-4 md:p-6"><h2 class="text-xl font-bold text-gray-800 border-b-2 pb-2 mb-4">Gan & Lịch Sử</h2><div>${finalHtml}</div></div>`; };
+    const displayHeadTailStats = (stats) => { const resultsContainer = document.getElementById('results-container'); const renderStatTable = (data) => { let content = '<div class="grid grid-cols-5 gap-2 text-center">'; const maxVal = Math.max(...Object.values(data)); for(let i=0; i<10; i++) { const count = data[i] || 0; const height = maxVal > 0 ? (count/maxVal*100) : 0; content += `<div class="flex flex-col items-center justify-end"><span class="text-sm font-semibold">${count}</span><div class="w-full h-24 bg-gray-200 rounded-t-md flex items-end"><div class="w-full bg-indigo-500 rounded-t-md" style="height: ${height}%"></div></div><div class="font-bold text-gray-700 bg-gray-100 w-full p-1 rounded-b-md">${i}</div></div>`; } return content + '</div>'; }; let finalHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div><h3 class="font-semibold text-lg mb-3">Thống kê đầu</h3>${renderStatTable(stats.head)}</div><div><h3 class="font-semibold text-lg mb-3">Thống kê đuôi</h3>${renderStatTable(stats.tail)}</div></div>`; resultsContainer.innerHTML += `<div class="stat-card p-4 md:p-6"><h2 class="text-xl font-bold text-gray-800 border-b-2 pb-2 mb-4">Đầu - Đuôi</h2><div>${finalHtml}</div></div>`; };
+    const performBacktest = () => { const activeTab = document.querySelector('.analyzer-tab-button.active'); const currentLottery = activeTab.dataset.lottery; const backtestDateInput = document.getElementById('backtest-date'); const targetDate = backtestDateInput.value; if (!targetDate) { alert('Vui lòng chọn ngày.'); return; } const allData = ALL_DATA[currentLottery] || []; const actualResult = allData.find(d => d.date === targetDate); const historicalData = allData.filter(d => d.date < targetDate); if (!actualResult) { alert(`Không có dữ liệu cho ngày ${targetDate}.`); return; } if (historicalData.length < 50) { alert('Không đủ dữ liệu lịch sử.'); return; } const { prediction } = runAnalysisPipeline(historicalData, currentLottery); displayBacktestResult(prediction, actualResult, targetDate); };
+    const displayBacktestResult = (prediction, actualResult, date) => { const advancedResultsContainer = document.getElementById('advanced-results-container'); const renderNumberSet = (numbers) => { const getBallClass = () => ({ xsmb: 'xsmb-ball', mega645: 'mega645-ball', power655: 'power655-ball' }[document.querySelector('.analyzer-tab-button.active').dataset.lottery] || 'bg-gray-500'); const renderBall = (num, extraClass='') => `<div class="number-ball ${getBallClass()} ${extraClass}">${num.toString().padStart(2, '0')}</div>`; if (typeof numbers === 'object' && numbers.main) return numbers.main.map(n => renderBall(n)).join('') + renderBall(numbers.special, 'special-ball'); if (Array.isArray(numbers)) return numbers.map(n => renderBall(n)).join(''); return 'N/A'; }; const predictionContent = renderNumberSet(prediction.numbers); const actualContent = renderNumberSet(actualResult.numbers); let content = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="p-4 bg-blue-50 rounded-lg"><h4 class="font-semibold text-blue-800 text-center mb-2">Dự đoán</h4><div class="flex flex-wrap justify-center gap-1">${predictionContent}</div></div><div class="p-4 bg-green-50 rounded-lg"><h4 class="font-semibold text-green-800 text-center mb-2">Thực tế</h4><div class="flex flex-wrap justify-center gap-1">${actualContent}</div></div></div>`; advancedResultsContainer.innerHTML = `<div class="stat-card p-4 md:p-6"><h2 class="text-xl font-bold border-b-2 pb-2 mb-4">So sánh cho ngày ${date}</h2><div>${content}</div></div>`; };
+    const performProbabilityAnalysis = () => { const activeTab = document.querySelector('.analyzer-tab-button.active'); const currentLottery = activeTab.dataset.lottery; const backtestDateInput = document.getElementById('backtest-date'); const numberInput = document.getElementById('number-input'); const targetDateStr = backtestDateInput.value; const targetNumber = parseInt(numberInput.value); if (isNaN(targetNumber)) { alert('Vui lòng nhập số.'); return; } const historicalData = (ALL_DATA[currentLottery] || []).filter(d => d.date < targetDateStr); const targetDate = new Date(targetDateStr); const dayOfWeekProb = calculateProbability(targetNumber, historicalData.filter(d => new Date(d.date).getDay() === targetDate.getDay())); const dayOfMonthProb = calculateProbability(targetNumber, historicalData.filter(d => new Date(d.date).getDate() === targetDate.getDate())); const monthProb = calculateProbability(targetNumber, historicalData.filter(d => new Date(d.date).getMonth() === targetDate.getMonth())); const oneYearAgo = new Date(targetDate); oneYearAgo.setDate(oneYearAgo.getDate() - 365); const last365DaysProb = calculateProbability(targetNumber, historicalData.filter(d => new Date(d.date) >= oneYearAgo)); displayProbabilityResult(targetNumber, { dayOfWeek: dayOfWeekProb, dayOfMonth: dayOfMonthProb, month: monthProb, last365: last365DaysProb }, targetDateStr); };
+    const calculateProbability = (number, data) => { const activeTab = document.querySelector('.analyzer-tab-button.active'); const currentLottery = activeTab.dataset.lottery; if (data.length === 0) return { freq: 0, totalDraws: 0, probability: 0 }; let count = 0; const numbersPerDraw = currentLottery === 'xsmb' ? 27 : (currentLottery === 'power655' ? 7 : 6); data.forEach(d => { const numbersInDraw = (currentLottery === 'power655' && d.numbers.main) ? [...d.numbers.main, d.numbers.special] : d.numbers; if (numbersInDraw.includes(number)) count++; }); const totalNumbers = data.length * numbersPerDraw; return { freq: count, totalDraws: data.length, probability: totalNumbers > 0 ? (count / totalNumbers * 100) : 0 }; };
+    const displayProbabilityResult = (number, probabilities, date) => { const advancedResultsContainer = document.getElementById('advanced-results-container'); const getBallClass = () => ({ xsmb: 'xsmb-ball', mega645: 'mega645-ball', power655: 'power655-ball' }[document.querySelector('.analyzer-tab-button.active').dataset.lottery] || 'bg-gray-500'); const renderBall = (num, extraClass='') => `<div class="number-ball ${getBallClass()} ${extraClass}">${num.toString().padStart(2, '0')}</div>`; const weekdays = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]; const targetDate = new Date(date); const renderRow = (label, data) => `<div class="flex items-center justify-between p-2 border-b"><span class="font-medium text-gray-600">${label}</span><div class="text-right"><span class="font-bold text-lg text-indigo-600">${data.probability.toFixed(3)}%</span><span class="text-xs text-gray-500 block">(${data.freq} lần/${data.totalDraws} kỳ)</span></div></div>`; let content = `<div class="space-y-2">${renderRow(`Ngày <strong>${weekdays[targetDate.getDay()]}</strong>`, probabilities.dayOfWeek)}${renderRow(`Ngày <strong>${targetDate.getDate()}</strong>`, probabilities.dayOfMonth)}${renderRow(`<strong>Tháng ${targetDate.getMonth() + 1}</strong>`, probabilities.month)}${renderRow(`<strong>365 ngày</strong> qua`, probabilities.last365)}</div><p class="text-xs text-gray-500 mt-4 text-center italic">Dựa trên dữ liệu trước ngày ${date}.</p>`; advancedResultsContainer.innerHTML = `<div class="stat-card p-4 md:p-6"><h2 class="text-xl font-bold border-b-2 pb-2 mb-4">Xác suất cho số ${renderBall(number)}</h2><div>${content}</div></div>`; };
 
-            if (newData.length > 0) {
-                const combinedData = [...existingData, ...newData.map(d => ({...d, id: `KY-REAL-${d.date}`, is_mock: false}))];
-                db[currentLottery] = combinedData;
-                saveData(db);
-                dataStatus.innerHTML = `<p class="text-green-600 font-semibold">Đã cập nhật thành công ${newData.length} ngày dữ liệu mới!</p>`;
-                await performAnalysis();
-            } else {
-                 dataStatus.innerHTML = `<p class="text-yellow-500 font-semibold">Không tìm thấy dữ liệu mới hoặc có lỗi xảy ra.</p>`;
-            }
-        };
-        
-        const backupData = () => {
-            const db = loadData();
-            const dataToBackup = db[currentLottery];
-            if (!dataToBackup || dataToBackup.length === 0) {
-                alert('Không có dữ liệu để sao lưu.');
-                return;
-            }
-            const dataStr = JSON.stringify(dataToBackup, null, 2);
-            const blob = new Blob([dataStr], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `lottery_data_${currentLottery}_${formatDate(new Date())}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            dataStatus.innerHTML = `<p class="text-green-600 font-semibold">Đã tạo tệp sao lưu thành công!</p>`;
-        };
-        
-        const initializeData = async () => {
-            const db = loadData();
-            if (!db[currentLottery] || db[currentLottery].length === 0) {
-                checkDataOrigin();
-                await fetchInitialData();
-            }
-            checkDataOrigin();
-            const data = db[currentLottery] || [];
+    // --- MAIN APP INITIALIZATION & EVENT LISTENERS ---
+    const updateStatusDisplay = () => {
+        let html = '';
+        LOTTERY_TYPES.forEach(type => {
+            const data = ALL_DATA[type] || [];
             if (data.length > 0) {
-                backtestDateInput.min = data[0].date;
-                backtestDateInput.max = data[data.length - 1].date;
-                backtestDateInput.value = backtestDateInput.max;
-            }
-        };
-
-        // --- Analysis Core Logic & Functions ---
-        const runAnalysisPipeline = (dataToAnalyze, lotteryType) => {
-            if (lotteryType === 'bingo18') return { analysis: {}, prediction: {} };
-            
-            const allNumbers = dataToAnalyze.flatMap(d => (lotteryType === 'power655' && d.numbers.main) ? [...d.numbers.main, d.numbers.special] : d.numbers);
-            const numberRange = (lotteryType === 'xsmb') ? {min: 0, max: 99} : (lotteryType === 'mega645') ? {min: 1, max: 45} : {min: 1, max: 55};
-            
-            const frequency = calculateFrequency(allNumbers, numberRange);
-            const { mostFrequent, leastFrequent } = getTopBottom(frequency, 10);
-            const { longestNotSeen, recentHistory } = findLongestNotSeen(dataToAnalyze, numberRange, lotteryType);
-            const prediction = generateStrategicPrediction(mostFrequent, longestNotSeen, dataToAnalyze, lotteryType);
-            
-            let extraAnalysis = {};
-            if (lotteryType === 'xsmb') {
-                extraAnalysis.headTailStats = calculateHeadTailStats(allNumbers);
-            }
-            
-            return {
-                analysis: { frequency, mostFrequent, leastFrequent, longestNotSeen, recentHistory, ...extraAnalysis },
-                prediction
-            };
-        };
-        const performAnalysis = async () => {
-            loader.classList.remove('hidden');
-            resultsContainer.innerHTML = '';
-            advancedResultsContainer.innerHTML = ''; 
-            await delay(500);
-            const db = loadData();
-            const allDataForType = db[currentLottery] || [];
-            
-            if (allDataForType.length === 0) {
-                resultsContainer.innerHTML = `<div class="text-center p-4 bg-yellow-100 text-yellow-700 rounded-lg">Không có dữ liệu. Hệ thống sẽ tự động tải.</div>`;
-                loader.classList.add('hidden');
-                await initializeData();
-                return;
-            }
-            
-            const numDraws = parseInt(drawCountInput.value) || 100;
-            const dataToAnalyze = allDataForType.slice(-numDraws);
-
-            const { analysis, prediction } = runAnalysisPipeline(dataToAnalyze, currentLottery);
-            
-            if (Object.keys(analysis).length === 0) {
-                resultsContainer.innerHTML = `<div class="text-center p-4 bg-yellow-100 text-yellow-700 rounded-lg">Chức năng cho '${currentLottery}' đang được phát triển.</div>`;
+                html += `<p><strong>${type.toUpperCase()}:</strong> <span class="text-green-600 font-semibold">${data.length}</span> kỳ, đến <span class="font-semibold">${data[data.length-1].date}</span>.</p>`;
             } else {
-                 displayPrediction(prediction);
-                 displayFrequency(analysis.frequency);
-                 displayTopLists(analysis.mostFrequent.slice(0,5), analysis.leastFrequent.slice(0,5));
-                 displayNotSeen(analysis.longestNotSeen, analysis.recentHistory);
-                 if (currentLottery === 'xsmb' && analysis.headTailStats) {
-                     displayHeadTailStats(analysis.headTailStats);
-                 }
+                html += `<p><strong>${type.toUpperCase()}:</strong> <span class="text-red-600 font-semibold">Chưa có dữ liệu.</span></p>`;
             }
-            loader.classList.add('hidden');
-        };
-        const calculateFrequency = (numbers, range) => {
-            const freq = {};
-            for (let i = range.min; i <= range.max; i++) { freq[i] = 0; }
-            numbers.forEach(num => { if(freq[num] !== undefined) freq[num]++; });
-            return freq;
-        };
-        const getTopBottom = (frequencyData, count) => {
-            const sorted = Object.entries(frequencyData).sort(([,a], [,b]) => b - a);
-            return { mostFrequent: sorted.slice(0, count), leastFrequent: sorted.slice(-count).reverse() };
-        };
-        const findLongestNotSeen = (draws, range, lotteryType) => {
-            const lastSeen = {};
-            for (let i = range.min; i <= range.max; i++) { lastSeen[i] = -1; }
-            draws.forEach((draw, index) => {
-                const numbersInDraw = new Set((lotteryType === 'power655' && draw.numbers.main) ? [...draw.numbers.main, draw.numbers.special] : draw.numbers);
-                numbersInDraw.forEach(num => { lastSeen[num] = index; });
-            });
-            const notSeen = [];
-            const totalDraws = draws.length;
-            for (let i = range.min; i <= range.max; i++) {
-                if (lastSeen[i] === -1 && totalDraws > 0) {
-                    notSeen.push({ number: i, days: totalDraws });
-                } else if (lastSeen[i] > -1) {
-                    notSeen.push({ number: i, days: totalDraws - 1 - lastSeen[i] });
-                }
+        });
+        dataStatusDisplay.innerHTML = html;
+    };
+
+    const showAnalyzerMessage = (message) => {
+        analyzerContainer.innerHTML = `<div class="text-center p-6 bg-yellow-100 text-yellow-800 rounded-lg">${message}</div>`;
+    };
+
+    const handleMainTabClick = (e) => {
+        mainTabButtons.forEach(btn => btn.classList.remove('active', 'border-blue-500', 'text-blue-600'));
+        e.target.classList.add('active', 'border-blue-500', 'text-blue-600');
+        mainTabs.forEach(tab => tab.classList.remove('active'));
+        document.getElementById(e.target.dataset.tab).classList.add('active');
+    };
+    
+    const handleAnalyzerTabClick = (e) => {
+        document.querySelectorAll('.analyzer-tab-button').forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+        performAnalysis();
+    };
+
+    const initializeApp = async () => {
+        buildAnalyzerUI(); // Build the analyzer UI structure first
+        if (loadSettings()) {
+            const success = await loadDataFromGithub();
+            if (success) {
+                updateStatusDisplay();
+                performAnalysis(); // Initial analysis
             }
-            return { longestNotSeen: notSeen.sort((a, b) => b.days - a.days).slice(0, 10), recentHistory: draws.slice(-5).reverse() };
-        };
-        const calculateHeadTailStats = (numbers) => {
-             const stats = { head: {}, tail: {} };
-             for(let i=0; i<10; i++) { stats.head[i] = 0; stats.tail[i] = 0; }
-             numbers.forEach(num => {
-                 const n = parseInt(num);
-                 if(n < 0 || n > 99) return;
-                 const head = Math.floor(n/10);
-                 const tail = n % 10;
-                 if(stats.head[head] !== undefined) stats.head[head]++;
-                 if(stats.tail[tail] !== undefined) stats.tail[tail]++;
-             });
-             return stats;
-        };
-        const analyzeVietlottPatterns = (draws) => {
-            const mainNumbersDraws = draws.map(d => d.numbers.main).filter(Boolean);
-            if(mainNumbersDraws.length === 0) return { optimalSumRange: { min: 0, max: 0 }, optimalEvenOdd: "3/3" };
-            const sums = mainNumbersDraws.map(d => d.reduce((a, b) => a + b, 0)).sort((a,b)=>a-b);
-            const evenOddCounts = {};
-            mainNumbersDraws.forEach(d => {
-                const evens = d.filter(n => n % 2 === 0).length;
-                const key = `${evens}/${6-evens}`;
-                evenOddCounts[key] = (evenOddCounts[key] || 0) + 1;
-            });
-            const q1 = sums[Math.floor(sums.length * 0.25)] || 0;
-            const q3 = sums[Math.floor(sums.length * 0.75)] || 0;
-            const sortedEvenOdd = Object.entries(evenOddCounts).sort(([,a],[,b])=>b-a);
-            return {
-                optimalSumRange: { min: q1, max: q3 },
-                optimalEvenOdd: sortedEvenOdd.length > 0 ? sortedEvenOdd[0][0] : "3/3"
-            };
-        };
-        const generateStrategicPrediction = (mostFrequent, longestNotSeen, dataToAnalyze, lotteryType) => {
-            const mostFreqNums = mostFrequent.map(item => parseInt(item[0]));
-            const longestNotSeenNums = longestNotSeen.map(item => item.number);
-            
-            if (lotteryType === 'xsmb') {
-                const headTailStats = calculateHeadTailStats(dataToAnalyze.flatMap(d => d.numbers));
-                const sortedHeads = Object.entries(headTailStats.head).sort(([,a],[,b]) => b-a);
-                return {
-                    type: 'xsmb',
-                    bạchThủ: mostFreqNums.length > 0 ? mostFreqNums[0] : null,
-                    songThủ: (mostFreqNums.length > 0 && longestNotSeenNums.length > 0) ? [mostFreqNums[0], longestNotSeenNums[0]] : null,
-                    chạm: sortedHeads.length > 0 ? parseInt(sortedHeads[0][0]) : null
-                };
-            }
+        } else {
+            showAnalyzerMessage('Chào mừng! Vui lòng vào tab "Quản lý & Cài đặt" để cấu hình thông tin kết nối với GitHub của bạn.');
+            opStatus.textContent = 'Vui lòng cấu hình trước khi cập nhật.';
+            updateAllBtn.disabled = true;
+        }
+    };
 
-            if (lotteryType === 'mega645' || lotteryType === 'power655') {
-                 const { optimalSumRange, optimalEvenOdd } = analyzeVietlottPatterns(dataToAnalyze);
-                 const needed = 6;
-                 let bestSet = [], bestScore = -1;
-                 const numberRange = lotteryType === 'mega645' ? {min: 1, max: 45} : {min: 1, max: 55};
-                 
-                 for (let i = 0; i < 5000; i++) {
-                     let candidateSet = new Set();
-                     if (mostFreqNums.length > 1) {
-                        candidateSet.add(mostFreqNums[getRandomInt(0, Math.min(4, mostFreqNums.length - 1))]);
-                        candidateSet.add(mostFreqNums[getRandomInt(0, Math.min(4, mostFreqNums.length - 1))]);
-                     }
-                     if (longestNotSeenNums.length > 1) {
-                        candidateSet.add(longestNotSeenNums[getRandomInt(0, Math.min(4, longestNotSeenNums.length - 1))]);
-                     }
-                     while (candidateSet.size < needed) { candidateSet.add(getRandomInt(numberRange.min, numberRange.max)); }
-                     const finalSet = Array.from(candidateSet);
-                     const sum = finalSet.reduce((a, b) => a + b, 0);
-                     const evens = finalSet.filter(n => n % 2 === 0).length;
-                     const evenOddKey = `${evens}/${needed-evens}`;
-                     let score = 0;
-                     if (sum >= optimalSumRange.min && sum <= optimalSumRange.max) score += 10;
-                     if (evenOddKey === optimalEvenOdd) score += 10;
-                     if (score > bestScore) { bestScore = score; bestSet = finalSet; }
-                 }
-                 const finalBestSet = bestSet.sort((a,b)=>a-b);
-                 return {
-                    type: 'vietlott',
-                    numbers: finalBestSet,
-                    sum: finalBestSet.reduce((a,b)=>a+b, 0),
-                    evenOdd: `${finalBestSet.filter(n=>n%2===0).length}/${finalBestSet.filter(n=>n%2!==0).length}`,
-                    analysis: `Dàn số tối ưu. Tổng phổ biến: ${optimalSumRange.min}-${optimalSumRange.max}, Tỷ lệ C/L: ${optimalEvenOdd}.`
-                 };
-            }
-            return { type: 'other', analysis: 'Chưa hỗ trợ dự đoán cho loại này.' };
-        };
-        
-        // --- Advanced Analysis Functions ---
-        const performBacktest = () => {
-            loader.classList.remove('hidden'); advancedResultsContainer.innerHTML = '';
-            setTimeout(() => {
-                const targetDate = backtestDateInput.value;
-                if (!targetDate) { advancedResultsContainer.innerHTML = `<div class="p-3 bg-red-100 text-red-700 rounded-md">Vui lòng chọn ngày.</div>`; loader.classList.add('hidden'); return; }
-                const db = loadData(); const allData = db[currentLottery] || [];
-                const actualResult = allData.find(d => d.date === targetDate);
-                const historicalData = allData.filter(d => d.date < targetDate);
-                if (!actualResult) { advancedResultsContainer.innerHTML = `<div class="p-3 bg-red-100 text-red-700 rounded-md">Không có dữ liệu cho ngày ${targetDate}.</div>`; loader.classList.add('hidden'); return; }
-                if (historicalData.length < 50) { advancedResultsContainer.innerHTML = `<div class="p-3 bg-yellow-100 text-yellow-700 rounded-md">Không đủ dữ liệu lịch sử để dự đoán.</div>`; loader.classList.add('hidden'); return; }
-                const { prediction } = runAnalysisPipeline(historicalData, currentLottery);
-                displayBacktestResult(prediction, actualResult, targetDate);
-                loader.classList.add('hidden');
-            }, 500);
-        };
-        const performProbabilityAnalysis = () => {
-            loader.classList.remove('hidden'); advancedResultsContainer.innerHTML = '';
-            setTimeout(() => {
-                const targetDateStr = backtestDateInput.value; const targetNumber = parseInt(numberInput.value);
-                if (isNaN(targetNumber)) { advancedResultsContainer.innerHTML = `<div class="p-3 bg-red-100 text-red-700 rounded-md">Vui lòng nhập số hợp lệ.</div>`; loader.classList.add('hidden'); return; }
-                const db = loadData(); const historicalData = (db[currentLottery] || []).filter(d => d.date < targetDateStr);
-                const targetDate = new Date(targetDateStr);
-                const dayOfWeekProb = calculateProbability(targetNumber, historicalData.filter(d => new Date(d.date).getDay() === targetDate.getDay()));
-                const dayOfMonthProb = calculateProbability(targetNumber, historicalData.filter(d => new Date(d.date).getDate() === targetDate.getDate()));
-                const monthProb = calculateProbability(targetNumber, historicalData.filter(d => new Date(d.date).getMonth() === targetDate.getMonth()));
-                const oneYearAgo = new Date(targetDate); oneYearAgo.setDate(oneYearAgo.getDate() - 365);
-                const last365DaysProb = calculateProbability(targetNumber, historicalData.filter(d => new Date(d.date) >= oneYearAgo));
-                displayProbabilityResult(targetNumber, { dayOfWeek: dayOfWeekProb, dayOfMonth: dayOfMonthProb, month: monthProb, last365: last365DaysProb }, targetDateStr);
-                loader.classList.add('hidden');
-            }, 500);
-        };
-        const calculateProbability = (number, data) => {
-            if (data.length === 0) return { freq: 0, totalDraws: 0, probability: 0 };
-            let count = 0, totalNumbers = 0;
-            if (currentLottery === 'xsmb') {
-                data.forEach(d => { d.numbers.forEach(n => { if (n === number) count++; }); });
-                totalNumbers = data.length * 27;
-            } else {
-                 const numbersPerDraw = currentLottery === 'power655' ? 7 : 6;
-                 data.forEach(d => {
-                    const numbersInDraw = (currentLottery === 'power655' && d.numbers.main) ? [...d.numbers.main, d.numbers.special] : d.numbers;
-                    if (numbersInDraw.includes(number)) count++;
-                 });
-                 totalNumbers = data.length * numbersPerDraw;
-            }
-            return { freq: count, totalDraws: data.length, probability: totalNumbers > 0 ? (count / totalNumbers * 100) : 0 };
-        };
+    mainTabButtons.forEach(button => button.addEventListener('click', handleMainTabClick));
+    saveSettingsBtn.addEventListener('click', saveSettings);
+    updateAllBtn.addEventListener('click', handleUpdateAll);
 
-
-        // --- Rendering Functions ---
-        const getBallClass = () => {
-            return { xsmb: 'xsmb-ball', mega645: 'mega645-ball', power655: 'power655-ball', bingo18: 'bingo18-ball' }[currentLottery] || 'bg-gray-500';
-        };
-        const renderCard = (title, content, container = resultsContainer) => {
-            const cardHtml = `<div class="stat-card p-4 md:p-6"><h2 class="text-xl font-bold text-gray-800 border-b-2 border-gray-200 pb-2 mb-4">${title}</h2><div>${content}</div></div>`;
-            if(container) container.innerHTML += cardHtml;
-            return cardHtml;
-        };
-        const renderBall = (num, extraClass = '') => `<div class="number-ball ${getBallClass()} ${extraClass}">${num.toString().padStart(2, '0')}</div>`;
-        const renderNumberSet = (numbers) => {
-            if (typeof numbers === 'object' && numbers.main) { return numbers.main.map(n => renderBall(n)).join('') + renderBall(numbers.special, 'special-ball'); }
-            if (Array.isArray(numbers)) { return numbers.map(n => renderBall(n)).join(''); }
-            return 'N/A';
-        };
-        const displayPrediction = (prediction) => { 
-            let content = '';
-            if (prediction.type === 'xsmb') {
-                const renderNumber = (num) => num !== null ? `<div class="number-ball !w-12 !h-12 text-xl mx-auto ${getBallClass()}">${num.toString().padStart(2, '0')}</div>` : 'N/A';
-                content = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center"><div><h4 class="font-semibold mb-2">Bạch Thủ Lô</h4>${renderNumber(prediction.bạchThủ)}</div><div><h4 class="font-semibold mb-2">Song Thủ Lô</h4><div class="flex justify-center gap-2">${prediction.songThủ ? prediction.songThủ.map(n => renderNumber(n)).join('') : renderNumber(null)}</div></div><div><h4 class="font-semibold mb-2">Chạm Đề</h4>${renderNumber(prediction.chạm)}</div></div>`;
-            } else if (prediction.type === 'vietlott') {
-                let numbersHtml = prediction.numbers.map(n => `<div class="number-ball !w-12 !h-12 text-xl mx-auto ${getBallClass()}">${n.toString().padStart(2, '0')}</div>`).join('');
-                content = `<div class="text-center"><div class="flex flex-wrap justify-center gap-4 mb-4">${numbersHtml}</div><div class="flex justify-center gap-6 text-sm my-4"><span><strong>Tổng:</strong> ${prediction.sum}</span><span><strong>C/L:</strong> ${prediction.evenOdd}</span></div><p class="text-sm text-gray-600 italic">${prediction.analysis}</p></div>`;
-            } else { content = `<p class="text-center text-gray-500">${prediction.analysis}</p>`; }
-            const finalHtml = `${content}<div class="mt-4 p-2 bg-red-100 border border-red-300 text-red-700 text-xs rounded-md"><strong>Lưu ý:</strong> Dự đoán chỉ mang tính tham khảo và giải trí.</div>`;
-            renderCard(`Dự đoán theo chiến lược`, finalHtml);
-        };
-        const displayFrequency = (frequency) => { 
-            const maxCount = Math.max(...Object.values(frequency)); let content = '<div class="grid grid-cols-5 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 gap-4">';
-            for (const [number, count] of Object.entries(frequency)) { const opacity = count > 0 ? 0.5 + (count / maxCount) * 0.5 : 0.2; content += `<div class="text-center"><div class="number-ball mx-auto ${getBallClass()}" style="opacity: ${opacity};">${number.toString().padStart(2, '0')}</div><p class="text-xs font-semibold mt-1">${count} lần</p></div>`; }
-            content += '</div>'; renderCard('Bảng Tần Suất', content);
-        };
-        const displayTopLists = (most, least) => {
-            let mostContent = '<div class="space-y-3">';
-            most.forEach(([number, count]) => { mostContent += `<div class="flex items-center"><div class="number-ball text-sm !w-8 !h-8 ${getBallClass()}">${number.toString().padStart(2, '0')}</div><div class="flex-grow ml-3"><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-600 h-2.5 rounded-full" style="width: ${most.length > 0 && most[0][1]>0 ? count/most[0][1]*100 : 0}%"></div></div></div><span class="ml-3 font-semibold text-gray-700">${count} lần</span></div>`; });
-            mostContent += '</div>'; let leastContent = '<div class="space-y-3">';
-            least.forEach(([number, count]) => { leastContent += `<div class="flex items-center"><div class="number-ball text-sm !w-8 !h-8 ${getBallClass()} opacity-60">${number.toString().padStart(2, '0')}</div><div class="flex-grow ml-3"><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-yellow-500 h-2.5 rounded-full" style="width: ${least.length > 0 && least[0][1] > 0 ? (count/least[0][1]*100) : 0}%"></div></div></div><span class="ml-3 font-semibold text-gray-700">${count} lần</span></div>`; });
-            leastContent += '</div>'; let finalHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div><h3 class="font-semibold text-lg text-green-600 mb-3">Top 5 về nhiều</h3>${mostContent}</div><div><h3 class="font-semibold text-lg text-red-600 mb-3">Top 5 về ít</h3>${leastContent}</div></div>`;
-            renderCard('Thống Kê Nhanh', finalHtml);
-        };
-        const displayNotSeen = (longestNotSeen, recentHistory) => { 
-            let notSeenContent = '<div class="flex flex-wrap gap-2">';
-            longestNotSeen.forEach(({number, days}) => { notSeenContent += `<div class="text-center p-2 bg-gray-100 rounded-lg"><div class="number-ball !w-10 !h-10 text-base mx-auto ${getBallClass()}">${number.toString().padStart(2, '0')}</div><p class="text-sm font-medium mt-1">${days} kỳ</p></div>`; });
-            notSeenContent += '</div>'; let historyContent = '<div class="space-y-3">';
-            recentHistory.forEach(draw => { let numbersHtml = renderNumberSet(draw.numbers); historyContent += `<div class="flex items-center gap-3 p-2 bg-gray-50 rounded-md"><div class="text-sm font-semibold w-24">${draw.date}</div><div class="flex flex-wrap gap-1">${numbersHtml}</div></div>`; });
-            historyContent += '</div>'; let finalHtml = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div><h3 class="font-semibold text-lg text-gray-800 mb-3">Gan</h3>${notSeenContent}</div><div><h3 class="font-semibold text-lg text-gray-800 mb-3">5 kỳ gần nhất</h3>${historyContent}</div></div>`;
-            renderCard('Thống Kê Gan & Lịch Sử', finalHtml);
-        };
-        const displayHeadTailStats = (stats) => {
-            const renderStatTable = (data) => {
-                let content = '<div class="grid grid-cols-5 gap-2 text-center">'; const maxVal = Math.max(...Object.values(data));
-                for(let i=0; i<10; i++) { const count = data[i]; const height = maxVal > 0 ? (count/maxVal*100) : 0; content += `<div class="flex flex-col items-center justify-end"><span class="text-sm font-semibold">${count}</span><div class="w-full h-24 bg-gray-200 rounded-t-md flex items-end"><div class="w-full bg-indigo-500 rounded-t-md" style="height: ${height}%"></div></div><div class="font-bold text-gray-700 bg-gray-100 w-full p-1 rounded-b-md">${i}</div></div>`; }
-                return content + '</div>';
-            }; let finalHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div><h3 class="font-semibold text-lg text-gray-800 mb-3">Thống kê đầu</h3>${renderStatTable(stats.head)}</div><div><h3 class="font-semibold text-lg text-gray-800 mb-3">Thống kê đuôi</h3>${renderStatTable(stats.tail)}</div></div>`;
-            renderCard('Thống Kê Đầu - Đuôi', finalHtml);
-        };
-        const displayBacktestResult = (prediction, actualResult, date) => {
-            const predictionContent = renderNumberSet(prediction.numbers);
-            const actualContent = renderNumberSet(actualResult.numbers);
-            let content = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="p-4 bg-blue-50 rounded-lg"><h4 class="font-semibold text-blue-800 text-center mb-2">Dự đoán của hệ thống</h4><div class="flex flex-wrap justify-center gap-1">${predictionContent}</div></div><div class="p-4 bg-green-50 rounded-lg"><h4 class="font-semibold text-green-800 text-center mb-2">Kết quả thực tế</h4><div class="flex flex-wrap justify-center gap-1">${actualContent}</div></div></div>`;
-            advancedResultsContainer.innerHTML = renderCard(`So sánh Kết quả cho ngày ${date}`, content, null);
-        };
-        const displayProbabilityResult = (number, probabilities, date) => {
-            const weekdays = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]; const targetDate = new Date(date);
-            const renderRow = (label, data) => `<div class="flex items-center justify-between p-2 border-b"><span class="font-medium text-gray-600">${label}</span><div class="text-right"><span class="font-bold text-lg text-indigo-600">${data.probability.toFixed(3)}%</span><span class="text-xs text-gray-500 block">(${data.freq} lần/${data.totalDraws} kỳ)</span></div></div>`;
-            let content = `<div class="space-y-2">${renderRow(`Ngày <strong>${weekdays[targetDate.getDay()]}</strong>`, probabilities.dayOfWeek)}${renderRow(`Ngày <strong>${targetDate.getDate()}</strong> hàng tháng`, probabilities.dayOfMonth)}${renderRow(`<strong>Tháng ${targetDate.getMonth() + 1}</strong>`, probabilities.month)}${renderRow(`<strong>365 ngày</strong> qua`, probabilities.last365)}</div><p class="text-xs text-gray-500 mt-4 text-center italic">Phân tích dựa trên dữ liệu trước ngày ${date}.</p>`;
-            advancedResultsContainer.innerHTML = renderCard(`Phân tích Xác suất cho số ${renderBall(number)}`, content, null);
-        };
-
-        // --- Event Handlers ---
-        const handleTabClick = async (e) => {
-            const newLottery = e.target.id.split('-')[1];
-            if (currentLottery === newLottery) return;
-            tabs[currentLottery].classList.remove('active');
-            currentLottery = newLottery;
-            tabs[currentLottery].classList.add('active');
-            resultsContainer.innerHTML = '<div class="text-center p-4 bg-blue-100 text-blue-700 rounded-lg">Đã chuyển loại xổ số...</div>';
-            advancedResultsContainer.innerHTML = '';
-            await initializeData();
-            await performAnalysis();
-        };
-
-        // --- Initial Setup ---
-        analyzeBtn.addEventListener('click', performAnalysis);
-        clearDataBtn.addEventListener('click', clearDataAndRefetch);
-        updateDataBtn.addEventListener('click', updateNewData);
-        backupDataBtn.addEventListener('click', backupData);
-        backtestBtn.addEventListener('click', performBacktest);
-        probabilityBtn.addEventListener('click', performProbabilityAnalysis);
-        Object.values(tabs).forEach(tab => tab.addEventListener('click', handleTabClick));
-        
-        initializeData();
-    });
-    </script>
+    initializeApp();
+});
+</script>
 </body>
 </html>
