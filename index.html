@@ -44,7 +44,7 @@
         .mega645-ball { background-color: #16a34a; }
         .power655-ball { background-color: #f97316; }
         .bingo18-ball { background-color: #8b5cf6; }
-        .special-ball { background-color: #ca8a04; }
+        .special-ball { background-color: #ca8a04 !important; }
         
         #loader {
             border: 5px solid #f3f3f3;
@@ -82,7 +82,7 @@
             <div class="mt-6">
                 <div class="flex flex-wrap items-center justify-center gap-4">
                     <div id="tabs" class="flex flex-wrap justify-center space-x-2 bg-gray-200 p-2 rounded-lg">
-                        <button id="tab-xsmb" class="tab-button px-4 py-2 font-semibold rounded-md active">XS Miền Bắc</button>
+                        <button id="tab-xsmb" class="tab-button px-4 py-2 font-semibold rounded-md active">XSMB (Loto 2 số)</button>
                         <button id="tab-mega645" class="tab-button px-4 py-2 font-semibold rounded-md">Mega 6/45</button>
                         <button id="tab-power655" class="tab-button px-4 py-2 font-semibold rounded-md">Power 6/55</button>
                         <button id="tab-bingo18" class="tab-button px-4 py-2 font-semibold rounded-md">Bingo18</button>
@@ -90,7 +90,7 @@
 
                     <div class="flex items-center space-x-2">
                         <label for="draw-count" class="font-medium text-gray-700">Số kỳ phân tích:</label>
-                        <input type="number" id="draw-count" value="200" class="w-24 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <input type="number" id="draw-count" value="100" class="w-24 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
                     <div class="flex space-x-2">
                          <button id="analyze-btn" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md">Phân Tích Hiện Tại</button>
@@ -109,7 +109,7 @@
                      <button id="backup-data-btn" class="w-full bg-gray-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-gray-700 transition-colors shadow-md">Sao Lưu Dữ Liệu</button>
                  </div>
                  <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                    <p><strong>Cập nhật:</strong> Tải về các kết quả mới nhất và thêm vào cơ sở dữ liệu.</p>
+                    <p><strong>Nguồn dữ liệu:</strong> <code class="font-mono">xosothudo.com.vn</code> (XSMB), <code class="font-mono">vietlott.vn</code> (Vietlott). Bingo18 đang phát triển.</p>
                     <p><strong>Sao lưu:</strong> Tải toàn bộ dữ liệu hiện tại về máy (dạng file .json) để bạn có thể lưu trữ hoặc tải lên GitHub.</p>
                  </div>
              </div>
@@ -193,6 +193,7 @@
         // --- Utility Functions ---
         const formatDate = (date) => date.toISOString().split('T')[0];
         const delay = ms => new Promise(res => setTimeout(res, ms));
+        const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
         // --- Data Management ---
         const saveData = (data) => {
@@ -227,40 +228,77 @@
         };
         
         // --- Data Fetching ---
-        const fetchXSMBDataForDate = async (dateStr) => {
+        const fetchXSMBDataFromXoSoThuDo = async (dateStr) => {
+            const dayOfWeekMapping = { 0: 'chu-nhat', 1: 'thu-2', 2: 'thu-3', 3: 'thu-4', 4: 'thu-5', 5: 'thu-6', 6: 'thu-7' };
             const [year, month, day] = dateStr.split('-');
-            const url = `https://ketqua.net.vn/xsmb/ngay-${day}-${month}-${year}.php`;
+            const dateObj = new Date(dateStr);
+            dateObj.setMinutes(dateObj.getMinutes() + dateObj.getTimezoneOffset());
+            const dayOfWeekStr = dayOfWeekMapping[dateObj.getDay()];
+            const url = `http://xosothudo.com.vn/xsmb-${dayOfWeekStr}-${day}-${month}-${year}.html`;
             try {
                 const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`);
                 if (!response.ok) return null;
                 const data = await response.json();
                 const html = data.contents;
-                
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
-                
-                const resultsTable = doc.querySelector('table.result-detail');
-                if (!resultsTable) return null;
-
+                const resultsContainer = doc.querySelector('div.box-ket-qua');
+                if (!resultsContainer) return null;
                 const numbers = [];
-                const prizeElements = resultsTable.querySelectorAll('td[id^="rs_"]');
-                prizeElements.forEach(td => {
-                    const parts = td.textContent.split('-');
+                const prizeSpans = resultsContainer.querySelectorAll('div[class^="giai"] span');
+                prizeSpans.forEach(span => {
+                    const parts = span.textContent.split(/\D+/); 
                     parts.forEach(p => {
-                        const num = parseInt(p.trim().slice(-2)); // Get last 2 digits
-                        if (!isNaN(num)) numbers.push(num);
+                        const trimmedPart = p.trim();
+                        if (trimmedPart.length >= 2) {
+                            const num = parseInt(trimmedPart.slice(-2));
+                            if (!isNaN(num)) numbers.push(num);
+                        }
                     });
                 });
-
-                if (numbers.length === 0) return null; // No results for that day
+                if (numbers.length === 0) return null;
                 return { date: dateStr, numbers };
-
             } catch (error) {
-                console.error(`Lỗi khi tải dữ liệu cho ngày ${dateStr}:`, error);
+                console.error(`Lỗi khi tải dữ liệu từ XoSoThuDo cho ngày ${dateStr}:`, error);
                 return null;
             }
         };
         
+        const fetchVietlottData = async (dateStr, gameTypeId) => {
+            const url = `https://vietlott.vn/api/w/service/`;
+            const payload = {
+                Filter: {
+                    Id: null, GameTypeId: gameTypeId, DrawId: 0,
+                    FromDate: `${dateStr}T00:00:00`, ToDate: `${dateStr}T23:59:59`
+                }, PageIndex: 1, PageSize: 20
+            };
+            try {
+                const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) return null;
+                const data = await response.json();
+                const responseContent = JSON.parse(data.contents);
+                const drawResult = responseContent?.Data?.DrawResult?.[0];
+                if (!drawResult || !drawResult.DrawedNumbers) return null;
+
+                const allNumbers = drawResult.DrawedNumbers;
+                if (gameTypeId === 1) { // Mega 6/45
+                    return { date: dateStr, numbers: allNumbers.sort((a,b)=>a-b) };
+                } else if (gameTypeId === 2) { // Power 6/55
+                    const mainNumbers = allNumbers.slice(0, 6).sort((a,b)=>a-b);
+                    const specialNumber = allNumbers[6];
+                    return { date: dateStr, numbers: { main: mainNumbers, special: specialNumber }};
+                }
+                return null;
+            } catch (error) {
+                 console.error(`Lỗi khi tải dữ liệu Vietlott cho ngày ${dateStr}:`, error);
+                return null;
+            }
+        };
+
         const fetchAndParseData = async (dates, lotteryType) => {
             const results = [];
             let fetchedCount = 0;
@@ -269,9 +307,12 @@
             for (const date of dates) {
                 let result = null;
                 if (lotteryType === 'xsmb') {
-                    result = await fetchXSMBDataForDate(date);
+                    result = await fetchXSMBDataFromXoSoThuDo(date);
+                } else if (lotteryType === 'mega645') {
+                    result = await fetchVietlottData(date, 1);
+                } else if (lotteryType === 'power655') {
+                    result = await fetchVietlottData(date, 2);
                 } else {
-                    // Placeholder for other lottery types
                     console.warn(`Chức năng tự động tải dữ liệu cho ${lotteryType} chưa được hỗ trợ.`);
                 }
                 
@@ -281,8 +322,7 @@
                 const progress = Math.round((fetchedCount / dates.length) * 100);
                 dataProgressBar.style.width = `${progress}%`;
                 dataProgressLabel.textContent = `Đang tải... [${fetchedCount}/${dates.length}] - Ngày ${date}`;
-
-                await delay(100); // Add a small delay to avoid overwhelming the server
+                await delay(200);
             }
             dataProgressContainer.classList.add('hidden');
             return results;
@@ -321,6 +361,7 @@
 
             const lastDate = new Date(existingData[existingData.length - 1].date);
             const today = new Date();
+            today.setHours(0,0,0,0);
             
             const datesToFetch = [];
             let currentDate = new Date(lastDate);
@@ -385,23 +426,18 @@
             }
         };
 
-        // --- Analysis Core Logic & Functions (unchanged from previous version) ---
+        // --- Analysis Core Logic & Functions ---
         const runAnalysisPipeline = (dataToAnalyze, lotteryType) => {
-             // This function remains exactly the same as the previous version
-            if (lotteryType === 'bingo18') {
-                // Bingo18 is not supported for auto-fetching yet, so we'll skip its logic for now.
-                // In a real scenario, you'd find a data source for it too.
-                return { analysis: {}, prediction: {} };
-            }
+            if (lotteryType === 'bingo18') return { analysis: {}, prediction: {} };
             
             const allNumbers = dataToAnalyze.flatMap(d => (lotteryType === 'power655' && d.numbers.main) ? [...d.numbers.main, d.numbers.special] : d.numbers);
             const numberRange = (lotteryType === 'xsmb') ? {min: 0, max: 99} : (lotteryType === 'mega645') ? {min: 1, max: 45} : {min: 1, max: 55};
-
+            
             const frequency = calculateFrequency(allNumbers, numberRange);
             const { mostFrequent, leastFrequent } = getTopBottom(frequency, 10);
             const { longestNotSeen, recentHistory } = findLongestNotSeen(dataToAnalyze, numberRange, lotteryType);
             const prediction = generateStrategicPrediction(mostFrequent, longestNotSeen, dataToAnalyze, lotteryType);
-
+            
             let extraAnalysis = {};
             if (lotteryType === 'xsmb') {
                 extraAnalysis.headTailStats = calculateHeadTailStats(allNumbers);
@@ -416,36 +452,33 @@
             loader.classList.remove('hidden');
             resultsContainer.innerHTML = '';
             advancedResultsContainer.innerHTML = ''; 
-            
-            await delay(500); // Simulate processing time
-
+            await delay(500);
             const db = loadData();
             const allDataForType = db[currentLottery] || [];
             
             if (allDataForType.length === 0) {
-                resultsContainer.innerHTML = `<div class="text-center p-4 bg-yellow-100 text-yellow-700 rounded-lg">Không có dữ liệu để phân tích. Hệ thống sẽ tự động tải dữ liệu gốc.</div>`;
+                resultsContainer.innerHTML = `<div class="text-center p-4 bg-yellow-100 text-yellow-700 rounded-lg">Không có dữ liệu. Hệ thống sẽ tự động tải.</div>`;
                 loader.classList.add('hidden');
                 await initializeData();
                 return;
             }
             
-            const numDraws = parseInt(drawCountInput.value) || 200;
+            const numDraws = parseInt(drawCountInput.value) || 100;
             const dataToAnalyze = allDataForType.slice(-numDraws);
 
             const { analysis, prediction } = runAnalysisPipeline(dataToAnalyze, currentLottery);
             
             if (Object.keys(analysis).length === 0) {
-                resultsContainer.innerHTML = `<div class="text-center p-4 bg-yellow-100 text-yellow-700 rounded-lg">Chức năng cho loại xổ số '${currentLottery}' đang được phát triển. Vui lòng chọn XSMB.</div>`;
+                resultsContainer.innerHTML = `<div class="text-center p-4 bg-yellow-100 text-yellow-700 rounded-lg">Chức năng cho '${currentLottery}' đang được phát triển.</div>`;
             } else {
                  displayPrediction(prediction);
                  displayFrequency(analysis.frequency);
                  displayTopLists(analysis.mostFrequent.slice(0,5), analysis.leastFrequent.slice(0,5));
                  displayNotSeen(analysis.longestNotSeen, analysis.recentHistory);
-                 if (currentLottery === 'xsmb') {
+                 if (currentLottery === 'xsmb' && analysis.headTailStats) {
                      displayHeadTailStats(analysis.headTailStats);
                  }
             }
-            
             loader.classList.add('hidden');
         };
         const calculateFrequency = (numbers, range) => {
@@ -468,8 +501,11 @@
             const notSeen = [];
             const totalDraws = draws.length;
             for (let i = range.min; i <= range.max; i++) {
-                if(lastSeen[i] === -1) continue;
-                notSeen.push({ number: i, days: totalDraws - 1 - lastSeen[i] });
+                if (lastSeen[i] === -1 && totalDraws > 0) {
+                    notSeen.push({ number: i, days: totalDraws });
+                } else if (lastSeen[i] > -1) {
+                    notSeen.push({ number: i, days: totalDraws - 1 - lastSeen[i] });
+                }
             }
             return { longestNotSeen: notSeen.sort((a, b) => b.days - a.days).slice(0, 10), recentHistory: draws.slice(-5).reverse() };
         };
@@ -486,10 +522,29 @@
              });
              return stats;
         };
+        const analyzeVietlottPatterns = (draws) => {
+            const mainNumbersDraws = draws.map(d => d.numbers.main).filter(Boolean);
+            if(mainNumbersDraws.length === 0) return { optimalSumRange: { min: 0, max: 0 }, optimalEvenOdd: "3/3" };
+            const sums = mainNumbersDraws.map(d => d.reduce((a, b) => a + b, 0)).sort((a,b)=>a-b);
+            const evenOddCounts = {};
+            mainNumbersDraws.forEach(d => {
+                const evens = d.filter(n => n % 2 === 0).length;
+                const key = `${evens}/${6-evens}`;
+                evenOddCounts[key] = (evenOddCounts[key] || 0) + 1;
+            });
+            const q1 = sums[Math.floor(sums.length * 0.25)] || 0;
+            const q3 = sums[Math.floor(sums.length * 0.75)] || 0;
+            const sortedEvenOdd = Object.entries(evenOddCounts).sort(([,a],[,b])=>b-a);
+            return {
+                optimalSumRange: { min: q1, max: q3 },
+                optimalEvenOdd: sortedEvenOdd.length > 0 ? sortedEvenOdd[0][0] : "3/3"
+            };
+        };
         const generateStrategicPrediction = (mostFrequent, longestNotSeen, dataToAnalyze, lotteryType) => {
+            const mostFreqNums = mostFrequent.map(item => parseInt(item[0]));
+            const longestNotSeenNums = longestNotSeen.map(item => item.number);
+            
             if (lotteryType === 'xsmb') {
-                const mostFreqNums = mostFrequent.map(item => parseInt(item[0]));
-                const longestNotSeenNums = longestNotSeen.map(item => item.number);
                 const headTailStats = calculateHeadTailStats(dataToAnalyze.flatMap(d => d.numbers));
                 const sortedHeads = Object.entries(headTailStats.head).sort(([,a],[,b]) => b-a);
                 return {
@@ -499,11 +554,45 @@
                     chạm: sortedHeads.length > 0 ? parseInt(sortedHeads[0][0]) : null
                 };
             }
-            return { type: 'vietlott', numbers: [], analysis: 'Chưa hỗ trợ dự đoán cho loại này.' };
+
+            if (lotteryType === 'mega645' || lotteryType === 'power655') {
+                 const { optimalSumRange, optimalEvenOdd } = analyzeVietlottPatterns(dataToAnalyze);
+                 const needed = 6;
+                 let bestSet = [], bestScore = -1;
+                 const numberRange = lotteryType === 'mega645' ? {min: 1, max: 45} : {min: 1, max: 55};
+                 
+                 for (let i = 0; i < 5000; i++) {
+                     let candidateSet = new Set();
+                     if (mostFreqNums.length > 1) {
+                        candidateSet.add(mostFreqNums[getRandomInt(0, Math.min(4, mostFreqNums.length - 1))]);
+                        candidateSet.add(mostFreqNums[getRandomInt(0, Math.min(4, mostFreqNums.length - 1))]);
+                     }
+                     if (longestNotSeenNums.length > 1) {
+                        candidateSet.add(longestNotSeenNums[getRandomInt(0, Math.min(4, longestNotSeenNums.length - 1))]);
+                     }
+                     while (candidateSet.size < needed) { candidateSet.add(getRandomInt(numberRange.min, numberRange.max)); }
+                     const finalSet = Array.from(candidateSet);
+                     const sum = finalSet.reduce((a, b) => a + b, 0);
+                     const evens = finalSet.filter(n => n % 2 === 0).length;
+                     const evenOddKey = `${evens}/${needed-evens}`;
+                     let score = 0;
+                     if (sum >= optimalSumRange.min && sum <= optimalSumRange.max) score += 10;
+                     if (evenOddKey === optimalEvenOdd) score += 10;
+                     if (score > bestScore) { bestScore = score; bestSet = finalSet; }
+                 }
+                 const finalBestSet = bestSet.sort((a,b)=>a-b);
+                 return {
+                    type: 'vietlott',
+                    numbers: finalBestSet,
+                    sum: finalBestSet.reduce((a,b)=>a+b, 0),
+                    evenOdd: `${finalBestSet.filter(n=>n%2===0).length}/${finalBestSet.filter(n=>n%2!==0).length}`,
+                    analysis: `Dàn số tối ưu. Tổng phổ biến: ${optimalSumRange.min}-${optimalSumRange.max}, Tỷ lệ C/L: ${optimalEvenOdd}.`
+                 };
+            }
+            return { type: 'other', analysis: 'Chưa hỗ trợ dự đoán cho loại này.' };
         };
         
-        // --- Advanced Analysis Functions (unchanged) ---
-        //... [performBacktest, performProbabilityAnalysis, calculateProbability remain the same]
+        // --- Advanced Analysis Functions ---
         const performBacktest = () => {
             loader.classList.remove('hidden'); advancedResultsContainer.innerHTML = '';
             setTimeout(() => {
@@ -540,28 +629,22 @@
             let count = 0, totalNumbers = 0;
             if (currentLottery === 'xsmb') {
                 data.forEach(d => { d.numbers.forEach(n => { if (n === number) count++; }); });
-                totalNumbers = data.length * 27; // Approximate
+                totalNumbers = data.length * 27;
             } else {
+                 const numbersPerDraw = currentLottery === 'power655' ? 7 : 6;
                  data.forEach(d => {
-                    if (d.numbers.main && d.numbers.main.includes(number)) count++;
-                    if (d.numbers.special && d.numbers.special === number) count++;
+                    const numbersInDraw = (currentLottery === 'power655' && d.numbers.main) ? [...d.numbers.main, d.numbers.special] : d.numbers;
+                    if (numbersInDraw.includes(number)) count++;
                  });
-                 totalNumbers = data.length * 7;
+                 totalNumbers = data.length * numbersPerDraw;
             }
             return { freq: count, totalDraws: data.length, probability: totalNumbers > 0 ? (count / totalNumbers * 100) : 0 };
         };
 
 
-        // --- Rendering Functions (unchanged) ---
-        //... [All display* functions remain the same]
+        // --- Rendering Functions ---
         const getBallClass = () => {
-            switch(currentLottery) {
-                case 'xsmb': return 'xsmb-ball';
-                case 'mega645': return 'mega645-ball';
-                case 'power655': return 'power655-ball';
-                case 'bingo18': return 'bingo18-ball';
-                default: return 'bg-gray-500';
-            }
+            return { xsmb: 'xsmb-ball', mega645: 'mega645-ball', power655: 'power655-ball', bingo18: 'bingo18-ball' }[currentLottery] || 'bg-gray-500';
         };
         const renderCard = (title, content, container = resultsContainer) => {
             const cardHtml = `<div class="stat-card p-4 md:p-6"><h2 class="text-xl font-bold text-gray-800 border-b-2 border-gray-200 pb-2 mb-4">${title}</h2><div>${content}</div></div>`;
@@ -570,35 +653,38 @@
         };
         const renderBall = (num, extraClass = '') => `<div class="number-ball ${getBallClass()} ${extraClass}">${num.toString().padStart(2, '0')}</div>`;
         const renderNumberSet = (numbers) => {
-            if (typeof numbers === 'object' && numbers.main) { return numbers.main.map(n => renderBall(n)).join('') + renderBall(numbers.special, '!bg-yellow-600'); }
+            if (typeof numbers === 'object' && numbers.main) { return numbers.main.map(n => renderBall(n)).join('') + renderBall(numbers.special, 'special-ball'); }
             if (Array.isArray(numbers)) { return numbers.map(n => renderBall(n)).join(''); }
             return 'N/A';
         };
         const displayPrediction = (prediction) => { 
-            let content = ''; const ballClass = getBallClass();
+            let content = '';
             if (prediction.type === 'xsmb') {
-                const renderNumber = (num) => num !== null ? `<div class="number-ball !w-12 !h-12 text-xl mx-auto ${ballClass}">${num.toString().padStart(2, '0')}</div>` : 'N/A';
+                const renderNumber = (num) => num !== null ? `<div class="number-ball !w-12 !h-12 text-xl mx-auto ${getBallClass()}">${num.toString().padStart(2, '0')}</div>` : 'N/A';
                 content = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center"><div><h4 class="font-semibold mb-2">Bạch Thủ Lô</h4>${renderNumber(prediction.bạchThủ)}</div><div><h4 class="font-semibold mb-2">Song Thủ Lô</h4><div class="flex justify-center gap-2">${prediction.songThủ ? prediction.songThủ.map(n => renderNumber(n)).join('') : renderNumber(null)}</div></div><div><h4 class="font-semibold mb-2">Chạm Đề</h4>${renderNumber(prediction.chạm)}</div></div>`;
+            } else if (prediction.type === 'vietlott') {
+                let numbersHtml = prediction.numbers.map(n => `<div class="number-ball !w-12 !h-12 text-xl mx-auto ${getBallClass()}">${n.toString().padStart(2, '0')}</div>`).join('');
+                content = `<div class="text-center"><div class="flex flex-wrap justify-center gap-4 mb-4">${numbersHtml}</div><div class="flex justify-center gap-6 text-sm my-4"><span><strong>Tổng:</strong> ${prediction.sum}</span><span><strong>C/L:</strong> ${prediction.evenOdd}</span></div><p class="text-sm text-gray-600 italic">${prediction.analysis}</p></div>`;
             } else { content = `<p class="text-center text-gray-500">${prediction.analysis}</p>`; }
             const finalHtml = `${content}<div class="mt-4 p-2 bg-red-100 border border-red-300 text-red-700 text-xs rounded-md"><strong>Lưu ý:</strong> Dự đoán chỉ mang tính tham khảo và giải trí.</div>`;
             renderCard(`Dự đoán theo chiến lược`, finalHtml);
         };
         const displayFrequency = (frequency) => { 
-            const maxCount = Math.max(...Object.values(frequency)); let content = '<div class="grid grid-cols-5 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 gap-4">'; const ballClass = getBallClass();
-            for (const [number, count] of Object.entries(frequency)) { const opacity = count > 0 ? 0.5 + (count / maxCount) * 0.5 : 0.2; content += `<div class="text-center"><div class="number-ball mx-auto ${ballClass}" style="opacity: ${opacity};">${number.toString().padStart(2, '0')}</div><p class="text-xs font-semibold mt-1">${count} lần</p></div>`; }
+            const maxCount = Math.max(...Object.values(frequency)); let content = '<div class="grid grid-cols-5 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 gap-4">';
+            for (const [number, count] of Object.entries(frequency)) { const opacity = count > 0 ? 0.5 + (count / maxCount) * 0.5 : 0.2; content += `<div class="text-center"><div class="number-ball mx-auto ${getBallClass()}" style="opacity: ${opacity};">${number.toString().padStart(2, '0')}</div><p class="text-xs font-semibold mt-1">${count} lần</p></div>`; }
             content += '</div>'; renderCard('Bảng Tần Suất', content);
         };
         const displayTopLists = (most, least) => {
-            const ballClass = getBallClass(); let mostContent = '<div class="space-y-3">';
-            most.forEach(([number, count]) => { mostContent += `<div class="flex items-center"><div class="number-ball text-sm !w-8 !h-8 ${ballClass}">${number.toString().padStart(2, '0')}</div><div class="flex-grow ml-3"><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-600 h-2.5 rounded-full" style="width: ${count/most[0][1]*100}%"></div></div></div><span class="ml-3 font-semibold text-gray-700">${count} lần</span></div>`; });
+            let mostContent = '<div class="space-y-3">';
+            most.forEach(([number, count]) => { mostContent += `<div class="flex items-center"><div class="number-ball text-sm !w-8 !h-8 ${getBallClass()}">${number.toString().padStart(2, '0')}</div><div class="flex-grow ml-3"><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-600 h-2.5 rounded-full" style="width: ${most.length > 0 && most[0][1]>0 ? count/most[0][1]*100 : 0}%"></div></div></div><span class="ml-3 font-semibold text-gray-700">${count} lần</span></div>`; });
             mostContent += '</div>'; let leastContent = '<div class="space-y-3">';
-            least.forEach(([number, count]) => { leastContent += `<div class="flex items-center"><div class="number-ball text-sm !w-8 !h-8 ${ballClass} opacity-60">${number.toString().padStart(2, '0')}</div><div class="flex-grow ml-3"><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-yellow-500 h-2.5 rounded-full" style="width: ${least.length > 0 && least[0][1] > 0 ? (count/least[0][1]*100) : 0}%"></div></div></div><span class="ml-3 font-semibold text-gray-700">${count} lần</span></div>`; });
+            least.forEach(([number, count]) => { leastContent += `<div class="flex items-center"><div class="number-ball text-sm !w-8 !h-8 ${getBallClass()} opacity-60">${number.toString().padStart(2, '0')}</div><div class="flex-grow ml-3"><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-yellow-500 h-2.5 rounded-full" style="width: ${least.length > 0 && least[0][1] > 0 ? (count/least[0][1]*100) : 0}%"></div></div></div><span class="ml-3 font-semibold text-gray-700">${count} lần</span></div>`; });
             leastContent += '</div>'; let finalHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div><h3 class="font-semibold text-lg text-green-600 mb-3">Top 5 về nhiều</h3>${mostContent}</div><div><h3 class="font-semibold text-lg text-red-600 mb-3">Top 5 về ít</h3>${leastContent}</div></div>`;
             renderCard('Thống Kê Nhanh', finalHtml);
         };
         const displayNotSeen = (longestNotSeen, recentHistory) => { 
-            const ballClass = getBallClass(); let notSeenContent = '<div class="flex flex-wrap gap-2">';
-            longestNotSeen.forEach(({number, days}) => { notSeenContent += `<div class="text-center p-2 bg-gray-100 rounded-lg"><div class="number-ball !w-10 !h-10 text-base mx-auto ${ballClass}">${number.toString().padStart(2, '0')}</div><p class="text-sm font-medium mt-1">${days} kỳ</p></div>`; });
+            let notSeenContent = '<div class="flex flex-wrap gap-2">';
+            longestNotSeen.forEach(({number, days}) => { notSeenContent += `<div class="text-center p-2 bg-gray-100 rounded-lg"><div class="number-ball !w-10 !h-10 text-base mx-auto ${getBallClass()}">${number.toString().padStart(2, '0')}</div><p class="text-sm font-medium mt-1">${days} kỳ</p></div>`; });
             notSeenContent += '</div>'; let historyContent = '<div class="space-y-3">';
             recentHistory.forEach(draw => { let numbersHtml = renderNumberSet(draw.numbers); historyContent += `<div class="flex items-center gap-3 p-2 bg-gray-50 rounded-md"><div class="text-sm font-semibold w-24">${draw.date}</div><div class="flex flex-wrap gap-1">${numbersHtml}</div></div>`; });
             historyContent += '</div>'; let finalHtml = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div><h3 class="font-semibold text-lg text-gray-800 mb-3">Gan</h3>${notSeenContent}</div><div><h3 class="font-semibold text-lg text-gray-800 mb-3">5 kỳ gần nhất</h3>${historyContent}</div></div>`;
@@ -613,9 +699,9 @@
             renderCard('Thống Kê Đầu - Đuôi', finalHtml);
         };
         const displayBacktestResult = (prediction, actualResult, date) => {
-            const predictionContent = `<div class="flex flex-wrap justify-center gap-1">${renderNumberSet(prediction.numbers)}</div>`;
-            const actualContent = `<div class="flex flex-wrap justify-center gap-1">${renderNumberSet(actualResult.numbers)}</div>`;
-            let content = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="p-4 bg-blue-50 rounded-lg"><h4 class="font-semibold text-blue-800 text-center mb-2">Dự đoán của hệ thống</h4>${predictionContent}</div><div class="p-4 bg-green-50 rounded-lg"><h4 class="font-semibold text-green-800 text-center mb-2">Kết quả thực tế</h4>${actualContent}</div></div>`;
+            const predictionContent = renderNumberSet(prediction.numbers);
+            const actualContent = renderNumberSet(actualResult.numbers);
+            let content = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="p-4 bg-blue-50 rounded-lg"><h4 class="font-semibold text-blue-800 text-center mb-2">Dự đoán của hệ thống</h4><div class="flex flex-wrap justify-center gap-1">${predictionContent}</div></div><div class="p-4 bg-green-50 rounded-lg"><h4 class="font-semibold text-green-800 text-center mb-2">Kết quả thực tế</h4><div class="flex flex-wrap justify-center gap-1">${actualContent}</div></div></div>`;
             advancedResultsContainer.innerHTML = renderCard(`So sánh Kết quả cho ngày ${date}`, content, null);
         };
         const displayProbabilityResult = (number, probabilities, date) => {
@@ -627,7 +713,7 @@
 
         // --- Event Handlers ---
         const handleTabClick = async (e) => {
-            const newLottery = e.target.id.split('-[1]');
+            const newLottery = e.target.id.split('-')[1];
             if (currentLottery === newLottery) return;
             tabs[currentLottery].classList.remove('active');
             currentLottery = newLottery;
