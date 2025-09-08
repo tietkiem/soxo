@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DATA FETCHING & PARSING ---
     const fetchWithProxy = async (url) => {
         const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`);
-        if (!response.ok) throw new Error(`Proxy request failed with status ${response.status}`);
+        if (!response.ok) throw new Error(`Proxy request failed for ${url} with status ${response.status}`);
         return response.json();
     };
 
@@ -223,8 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await fetchWithProxy('http://xosothudo.com.vn/');
             const parser = new DOMParser();
             const doc = parser.parseFromString(data.contents, 'text/html');
-            const latestLink = doc.querySelector('div.box-ket-qua a[href*="xsmb-"]');
-            if (!latestLink) throw new Error("Không tìm thấy link kết quả mới nhất.");
+            // Updated, more robust selector
+            const latestLink = doc.querySelector('.content-left .block-content-sdb a[href*="xsmb-"]');
+            if (!latestLink) throw new Error("Không tìm thấy link kết quả mới nhất (selector updated).");
             
             const relativeUrl = latestLink.getAttribute('href');
             const fullUrl = `http://xosothudo.com.vn${relativeUrl}`;
@@ -236,6 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return parseXSMBFromHTML(resultData.contents, dateStr);
         } catch (error) {
             console.error("Lỗi khi tìm kết quả XSMB mới nhất:", error);
+            opStatus.textContent = `Lỗi XSMB: ${error.message}`;
             return null;
         }
     };
@@ -247,11 +249,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) return null;
             const data = await response.json();
-            if (!data.contents || data.contents.trim().startsWith('<')) {
-                console.error(`Vietlott API trả về HTML thay vì JSON cho ngày ${dateStr}`);
+            
+            // Robust check for invalid JSON/HTML response from proxy
+            let responseContent;
+            try {
+                responseContent = JSON.parse(data.contents);
+            } catch (e) {
+                console.error(`Vietlott API trả về dữ liệu không hợp lệ (HTML?) cho ngày ${dateStr}. Lỗi: ${e.message}`);
                 return null;
             }
-            const responseContent = JSON.parse(data.contents);
+
             const drawResult = responseContent?.Data?.DrawResult?.[0];
             if (!drawResult || !drawResult.DrawedNumbers) return null;
             const allNumbers = drawResult.DrawedNumbers;
@@ -267,13 +274,13 @@ document.addEventListener('DOMContentLoaded', () => {
         dataProgressContainer.classList.remove('hidden');
         for (const date of dates) {
             let result = null;
+            // The logic for fetching historical XSMB data by constructing URLs is complex and brittle.
+            // The full update will primarily focus on Vietlott for now as finding historical XSMB links is hard.
+            // This can be expanded later.
             if (lotteryType === 'xsmb') {
-                const dateParts = date.split('-');
-                const url = `http://xosothudo.com.vn/xsmb-thu-X-${dateParts[2]}-${dateParts[1]}-${dateParts[0]}.html`; // Placeholder, real URL is more complex
-                try {
-                    const data = await fetchWithProxy(url.replace('thu-X', '...')); // simplified
-                    result = parseXSMBFromHTML(data.contents, date);
-                } catch (e) { console.error(e); }
+                // For full update, we can't reliably guess historical URLs.
+                // We will rely on quick test to get latest, and manual extension if needed.
+                // This part is simplified to avoid errors on full history fetch.
             } else if (lotteryType === 'mega645') result = await fetchVietlottData(date, 1);
             else if (lotteryType === 'power655') result = await fetchVietlottData(date, 2);
             if (result) results.push(result);
@@ -373,18 +380,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if(Object.keys(testData).length > 0) {
             const success = await saveDataToGithub(testData);
             if(success) {
-                opStatus.innerHTML = `Kiểm tra thành công! File <strong>data.json</strong> đã được tạo/cập nhật với dữ liệu mới nhất. Bây giờ bạn có thể chạy Cập nhật Toàn bộ.`;
-                ALL_DATA = testData; // Update global state
-                LATEST_DATA_SHA = null; // Force reload on full update
+                opStatus.innerHTML = `Kiểm tra thành công! File <strong>data.json</strong> đã được tạo/cập nhật. Bây giờ bạn có thể chạy Cập nhật Toàn bộ.`;
+                ALL_DATA = testData;
+                LATEST_DATA_SHA = null; 
                 updateStatusDisplay();
             }
         } else {
-            opStatus.textContent = 'Kiểm tra thất bại: Không thể tải được bất kỳ dữ liệu mẫu nào.';
+            opStatus.textContent = 'Kiểm tra thất bại: Không thể tải được bất kỳ dữ liệu mẫu nào. Proxy CORS có thể đang gặp sự cố.';
         }
         
         updateAllBtn.disabled = false; quickTestBtn.disabled = false;
     };
-
 
     // --- UI & ANALYSIS ---
     const buildAnalyzerUI = () => { /* ... Identical to previous version ... */ 
