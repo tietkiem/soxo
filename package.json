@@ -1,0 +1,10 @@
+{
+  "name": "xoso-analyzer-backend",
+  "version": "1.0.0",
+  "description": "API for lottery data scraping",
+  "main": "api/data.js",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "node-fetch": "^2.6.7"
+  }
+}
