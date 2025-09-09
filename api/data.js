@@ -1,19 +1,9 @@
-// Use dynamic import for node-fetch
-let fetch;
-import('node-fetch').then(nodeFetch => {
-    fetch = nodeFetch.default;
-});
-
-// Use dynamic import for cheerio
-let cheerio;
-import('cheerio').then(cheerioModule => {
-    cheerio = cheerioModule;
-});
-
+// Use CommonJS require syntax for Node.js compatibility
+const fetch = require('node-fetch');
+const cheerio = require('cheerio');
 
 // --- Helper Functions ---
 const parseXSMBMultiDayPage = (htmlContent) => {
-    if (!cheerio) throw new Error("Cheerio module not loaded yet.");
     const $ = cheerio.load(htmlContent);
     const results = [];
     $('div.table-crucial').each((i, block) => {
@@ -46,10 +36,8 @@ const parseXSMBMultiDayPage = (htmlContent) => {
 };
 
 const fetchVietlottAPI = async (gameTypeId) => {
-    if (!fetch) throw new Error("Node-fetch module not loaded yet.");
     const url = `https://vietlott.vn/api/w/service/`;
-    // Fetch last 200 draws for a good dataset
-    const payload = { GameTypeId: gameTypeId, PageIndex: 1, PageSize: 200 };
+    const payload = { GameTypeId: gameTypeId, PageIndex: 1, PageSize: 200, IsGetToDay: false }; // Fetch 200 latest draws
     const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -74,19 +62,24 @@ const fetchVietlottAPI = async (gameTypeId) => {
     return results.sort((a, b) => new Date(a.date) - new Date(b.date));
 };
 
-
 // --- Main Serverless Function Handler ---
-export default async function handler(request, response) {
+module.exports = async (request, response) => {
     const { type } = request.query;
 
-    // Add caching headers
+    // Set CORS headers to allow requests from any origin
+    response.setHeader('Access-Control-Allow-Origin', '*');
+    response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Handle OPTIONS preflight request for CORS
+    if (request.method === 'OPTIONS') {
+        return response.status(200).end();
+    }
+    
+    // Add caching headers for GET requests
     response.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate'); // Cache for 1 hour
 
     try {
-        if (!fetch || !cheerio) {
-            return response.status(503).send('Server is initializing, please try again in a moment.');
-        }
-
         let data;
         switch (type) {
             case 'xsmb':
@@ -115,4 +108,4 @@ export default async function handler(request, response) {
         console.error(`Error fetching data for ${type}:`, error);
         response.status(500).json({ error: `Failed to fetch data. ${error.message}` });
     }
-}
+};
