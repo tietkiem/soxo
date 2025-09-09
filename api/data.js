@@ -32,18 +32,33 @@ const parseXSMBMultiDayPage = (htmlContent) => {
             results.push({ date: dateStr, numbers });
         }
     });
+    
+    if (results.length === 0) {
+        throw new Error("Phân tích cú pháp HTML thành công nhưng không tìm thấy kết quả nào. Cấu trúc trang xskt.com.vn có thể đã thay đổi.");
+    }
     return results.sort((a, b) => new Date(a.date) - new Date(b.date));
 };
 
 const fetchVietlottAPI = async (gameTypeId) => {
     const url = `https://vietlott.vn/api/w/service/`;
-    const payload = { GameTypeId: gameTypeId, PageIndex: 1, PageSize: 200, IsGetToDay: false }; // Fetch 200 latest draws
+    const payload = { GameTypeId: gameTypeId, PageIndex: 1, PageSize: 200, IsGetToDay: false };
+    
+    // Add User-Agent to mimic a real browser request, bypassing 403 Forbidden error
+    const headers = {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
+    };
+
     const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error(`Vietlott API failed with status ${response.status}`);
+
+    if (!response.ok) {
+        throw new Error(`Vietlott API failed with status ${response.status} - ${response.statusText}`);
+    }
+    
     const data = await response.json();
     
     const results = data?.Data?.DrawResult?.map(draw => {
@@ -101,11 +116,16 @@ module.exports = async (request, response) => {
             default:
                 return response.status(400).json({ error: 'Invalid lottery type provided.' });
         }
+
+        if (!data || data.length === 0) {
+            throw new Error("Nguồn dữ liệu không trả về kết quả hợp lệ.");
+        }
         
         response.status(200).json(data);
 
     } catch (error) {
         console.error(`Error fetching data for ${type}:`, error);
-        response.status(500).json({ error: `Failed to fetch data. ${error.message}` });
+        response.status(500).json({ error: `Lỗi máy chủ: ${error.message}` });
     }
 };
+
