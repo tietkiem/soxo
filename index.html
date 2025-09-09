@@ -319,11 +319,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const addToProcessedData = (type, data) => {
-        if (!PROCESSED_DATA[type]) PROCESSED_DATA[type] = [];
+        if (!ALL_DATA[type]) {
+            ALL_DATA[type] = [];
+        }
         const dataArray = Array.isArray(data) ? data : [data];
         dataArray.forEach(item => {
-            if (!PROCESSED_DATA[type].some(d => d.date === item.date)) {
-                PROCESSED_DATA[type].push(item);
+            if (!ALL_DATA[type].some(d => d.date === item.date)) {
+                ALL_DATA[type].push(item);
             }
         });
     };
@@ -380,7 +382,6 @@ document.addEventListener('DOMContentLoaded', () => {
         currentLotteryType = newType;
         performAnalysis();
     };
-    // ... Paste all analysis, prediction, and rendering functions here ...
     const performAnalysis = () => {
         const resultsContainer = document.getElementById('results-container');
         const advancedResultsContainer = document.getElementById('advanced-results-container');
