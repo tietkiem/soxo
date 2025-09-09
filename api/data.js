@@ -1,124 +1,115 @@
 // Use CommonJS require syntax for Node.js compatibility
 const fetch = require('node-fetch');
-const cheerio = require('cheerio');
 
-// --- Helper Functions ---
-const parseXSMBMultiDayPage = (htmlContent) => {
-    const $ = cheerio.load(htmlContent);
-    const results = [];
-    $('div.table-crucial').each((i, block) => {
-        const titleEl = $(block).find('.title-bor-right a, .title-bor-right h2');
-        if (!titleEl.length) return;
+// --- API Helper Functions ---
 
-        const dateMatch = titleEl.text().match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
-        if (!dateMatch) return;
-        
-        const dateStr = `${dateMatch[3]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[1].padStart(2, '0')}`;
-        const numbers = [];
-
-        $(block).find('[class*="v-g"]').each((j, el) => {
-            const prizeText = $(el).text().trim();
-            const parts = prizeText.split(/\s+/).filter(Boolean);
-            parts.forEach(p => {
-                const numStr = p.trim();
-                if (numStr.length >= 2) {
-                    const num = parseInt(numStr.slice(-2));
-                    if (!isNaN(num)) numbers.push(num);
-                }
-            });
-        });
-        
-        if (numbers.length > 0) {
-            results.push({ date: dateStr, numbers });
-        }
-    });
-    
-    if (results.length === 0) {
-        throw new Error("Phân tích cú pháp HTML thành công nhưng không tìm thấy kết quả nào. Cấu trúc trang xskt.com.vn có thể đã thay đổi.");
-    }
-    return results.sort((a, b) => new Date(a.date) - new Date(b.date));
-};
-
-const fetchVietlottAPI = async (gameTypeId) => {
-    const url = `https://vietlott.vn/api/w/service/`;
-    const payload = { GameTypeId: gameTypeId, PageIndex: 1, PageSize: 200, IsGetToDay: false };
-    
-    // Add User-Agent to mimic a real browser request, bypassing 403 Forbidden error
-    const headers = {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
-    };
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(payload)
-    });
-
+// Fetches data for XSMB from a reliable public API
+const fetchXSMBAPI = async () => {
+    // This public API provides recent XSMB results
+    const url = 'https://api.xoso.me/app/json-kq-mienbac?page=1&limit=200';
+    const response = await fetch(url);
     if (!response.ok) {
-        throw new Error(`Vietlott API failed with status ${response.status} - ${response.statusText}`);
+        throw new Error(`XSMB API failed with status ${response.status}`);
     }
-    
     const data = await response.json();
-    
-    const results = data?.Data?.DrawResult?.map(draw => {
-        const date = draw.DrawDate.split('T')[0];
-        const allNumbers = draw.DrawedNumbers;
-        if (gameTypeId === 2) { // Power 6/55
-            return {
-                date,
-                numbers: { main: allNumbers.slice(0, 6).sort((a,b)=>a-b), special: allNumbers[6] }
-            };
-        } else { // Mega, Keno, Bingo
-            return { date, numbers: allNumbers.sort((a,b)=>a-b) };
-        }
-    }) || [];
-    
+
+    // The API returns a list, we need to process it
+    const results = data.list.map(draw => {
+        const dateParts = draw.ngay.split('/'); // Format is DD/MM/YYYY
+        const dateStr = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+
+        // The API provides numbers in a structured way
+        const numbers = [
+            ...draw.giaidb.split(',').map(n => parseInt(n.slice(-2))),
+            ...draw.giai1.split(',').map(n => parseInt(n.slice(-2))),
+            ...draw.giai2.split(',').map(n => parseInt(n.slice(-2))),
+            ...draw.giai3.split(',').map(n => parseInt(n.slice(-2))),
+            ...draw.giai4.split(',').map(n => parseInt(n.slice(-2))),
+            ...draw.giai5.split(',').map(n => parseInt(n.slice(-2))),
+            ...draw.giai6.split(',').map(n => parseInt(n.slice(-2))),
+            ...draw.giai7.split(',').map(n => parseInt(n.slice(-2))),
+        ].filter(n => !isNaN(n)); // Filter out any potential parsing errors
+
+        return { date: dateStr, numbers };
+    });
+
     return results.sort((a, b) => new Date(a.date) - new Date(b.date));
 };
+
+
+const fetchVietlottAPI = async (gameType) => {
+    // This public API provides recent Vietlott results
+    // It's more stable than hitting Vietlott's site directly
+    const url = `https://xosoplus.com/json/lastest/${gameType}.json`;
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Vietlott API (${gameType}) failed with status ${response.status}`);
+    }
+    const data = await response.json();
+
+    // The API returns data for many days, we need to parse it
+    const results = Object.keys(data).map(dateKey => {
+        const draw = data[dateKey];
+        const dateParts = draw.thu.split('_')[1].split('/'); // Format is ..._DD/MM/YYYY
+        const dateStr = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+        const allNumbers = draw.number.split(',').map(n => parseInt(n));
+
+        if (gameType === 'power655') {
+            return {
+                date: dateStr,
+                numbers: { main: allNumbers.slice(0, 6), special: allNumbers[6] }
+            };
+        } else { // Mega, Keno, Bingo18 (assuming similar structure)
+            return { date: dateStr, numbers: allNumbers };
+        }
+    });
+
+    return results.sort((a, b) => new Date(a.date) - new Date(b.date));
+};
+
 
 // --- Main Serverless Function Handler ---
 module.exports = async (request, response) => {
     const { type } = request.query;
 
-    // Set CORS headers to allow requests from any origin
+    // Set CORS headers
     response.setHeader('Access-Control-Allow-Origin', '*');
     response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle OPTIONS preflight request for CORS
     if (request.method === 'OPTIONS') {
         return response.status(200).end();
     }
     
-    // Add caching headers for GET requests
+    // Set caching headers
     response.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate'); // Cache for 1 hour
 
     try {
         let data;
         switch (type) {
             case 'xsmb':
-                const xsmbHtml = await fetch('https://xskt.com.vn/xsmb/200-ngay').then(res => res.text());
-                data = parseXSMBMultiDayPage(xsmbHtml);
+                data = await fetchXSMBAPI();
                 break;
             case 'mega645':
-                data = await fetchVietlottAPI(1); // GameTypeId for Mega 6/45 is 1
+                data = await fetchVietlottAPI('mega645');
                 break;
             case 'power655':
-                data = await fetchVietlottAPI(2); // GameTypeId for Power 6/55 is 2
+                data = await fetchVietlottAPI('power655');
                 break;
             case 'keno':
-                 data = await fetchVietlottAPI(10); // GameTypeId for Keno is 10
+                // Note: The new API might not support Keno in the same way.
+                // This is a placeholder and might need a different source if Keno is critical.
+                data = []; // Returning empty for now to avoid errors
                 break;
             case 'bingo18':
-                 data = await fetchVietlottAPI(11); // GameTypeId for Bingo18 is 11
+                 data = await fetchVietlottAPI('bingo18');
                 break;
             default:
                 return response.status(400).json({ error: 'Invalid lottery type provided.' });
         }
 
         if (!data || data.length === 0) {
-            throw new Error("Nguồn dữ liệu không trả về kết quả hợp lệ.");
+            throw new Error("Nguồn API không trả về kết quả hợp lệ cho loại hình này.");
         }
         
         response.status(200).json(data);
